@@ -53,5 +53,10 @@ next-env.d.ts
 # agent / 本地杂项
 .claude/
 
+# 冒烟测试 / 一次性工具脚本（不入库；本地保留可用。注意 eslint.config.mjs / postcss.config.mjs 是必需配置，不在此列）
+smoke*.mjs
+cleanup-smoke.mjs
+encrypt-keys.mjs
+
 # 保留示例环境文件（上面的 .env* 会把它也忽略，这里放行；它不含真实密钥）
 !.env.example
