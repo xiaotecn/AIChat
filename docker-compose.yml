@@ -1,0 +1,32 @@
+services:
+  app:
+    # 二选一：
+    #  · 用 GitHub Actions 构建好的镜像 → `docker compose pull && docker compose up -d`（2G 不用构建，推荐）
+    #  · 在服务器本地构建 → `docker compose up -d --build`（需先加 swap）
+    build:
+      context: .
+    image: ghcr.io/xiaotecn/aichat:latest
+    container_name: zhinenghaibao
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      # 数据库与上传都落到 /app/data（已绑定到宿主 ./data，方便备份 / 在 1Panel 文件管理里查看）
+      DATABASE_URL: "file:/app/data/dev.db"
+      UPLOAD_DIR: "/app/data/uploads"
+      # ⚠️ 必填，且必须与「现网 .env 里相同的值」一致：
+      #    NEXTAUTH_SECRET 改了 → 所有人需重新登录；
+      #    ENCRYPTION_KEY 改了 → 后台已存的服务商 API Key 解不开、AI 直接挂。
+      #    这两个值放在「与本文件同目录」的 .env 里（见 DEPLOY.md）。
+      NEXTAUTH_SECRET: "${NEXTAUTH_SECRET:?请在 compose 同目录 .env 设置 NEXTAUTH_SECRET}"
+      ENCRYPTION_KEY: "${ENCRYPTION_KEY:?请在 compose 同目录 .env 设置 ENCRYPTION_KEY}"
+    volumes:
+      - ./data:/app/data
+    healthcheck:
+      # 任何 HTTP 响应都算「在监听」；仅网络不通才判失败
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/login').then(()=>process.exit(0)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

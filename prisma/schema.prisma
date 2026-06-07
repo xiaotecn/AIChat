@@ -1,0 +1,191 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String         @id @default(cuid())
+  name               String
+  email              String         @unique
+  passwordHash       String
+  avatar             String?
+  role               String         @default("user")
+  status             String         @default("active")
+
+  // 订阅相关
+  planId             String?
+  plan               Plan?          @relation(fields: [planId], references: [id])
+  subscriptionStatus String         @default("active")
+  expiresAt          DateTime?
+
+  // 使用量统计
+  usedTokens         Int            @default(0)
+  usedMessages       Int            @default(0)
+  usedImages         Int            @default(0) // 本周期已生成图片数（独立于 token/消息，与其同周期重置）
+  periodStart        DateTime       @default(now())
+
+  conversations      Conversation[]
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  @@index([email])
+}
+
+model Plan {
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  tokenLimit   Int
+  messageLimit Int
+  imageLimit   Int      @default(-1) // 每周期可生成图片数：-1 不限 / 0 禁止 / N 张
+  resetCycle   String   @default("daily")
+  price        Float    @default(0)
+  enabled      Boolean  @default(true)
+
+  users        User[]
+  groups       PlanModelGroup[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Conversation {
+  id        String    @id @default(cuid())
+  title     String
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  modelId   String
+  messages  Message[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([userId, updatedAt])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  role           String
+  content        String
+  status         String       @default("done") // 普通消息 done；生图任务 pending → done/error（异步落库，供前端轮询）
+
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  tokens         Int?
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+model AiProvider {
+  id        String    @id @default(cuid())
+  name      String
+  baseUrl   String
+  apiKey    String
+  enabled   Boolean   @default(true)
+  models    AiModel[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model AiModel {
+  id            String     @id @default(cuid())
+  providerId    String
+  provider      AiProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  code          String
+  name          String
+  description   String?
+  contextLength Int
+  enabled       Boolean    @default(true)
+  price         Float      @default(1)
+  avgLatencyMs  Float?     @default(0)
+  groups        ModelGroupMember[]
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@unique([providerId, code])
+}
+
+model ApiLog {
+  id          String   @id @default(cuid())
+  providerId  String
+  model       String
+  user        String
+  action      String
+  tokens      Int
+  status      String
+  message     String
+  createdAt   DateTime @default(now())
+
+  @@index([providerId, createdAt])
+}
+
+model SystemSettings {
+  id               String   @id @default(cuid())
+  siteName         String   @default("AI Chat")
+  description      String?
+  logoUrl          String?
+  announcement     String?
+  registrationMode String   @default("open")
+  defaultPlanId    String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+// 模型分组：把多个 AiModel 打包，组内轮询 + 故障转移；按套餐授权给用户
+model ModelGroup {
+  id          String             @id @default(cuid())
+  name        String
+  description String?
+  avatarUrl   String?            // 分组自定义头像（data URI / 链接）；空则聊天回退默认 Bot 图标
+  enabled     Boolean            @default(true)
+  imageGen    Boolean            @default(false) // 开启后该分组走 /images/generations 生图，不走对话
+  cursor      Int                @default(0) // 持久化轮询游标，跨请求轮转
+  members     ModelGroupMember[]
+  plans       PlanModelGroup[]
+  rules       KeywordRule[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+}
+
+// 分组 ↔ 模型（显式 join，order 决定轮询顺序）
+model ModelGroupMember {
+  groupId String
+  modelId String
+  order   Int        @default(0)
+  group   ModelGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  model   AiModel    @relation(fields: [modelId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, modelId])
+  @@index([groupId, order])
+}
+
+// 套餐 ↔ 分组（显式 join）
+model PlanModelGroup {
+  planId  String
+  groupId String
+  plan    Plan       @relation(fields: [planId], references: [id], onDelete: Cascade)
+  group   ModelGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([planId, groupId])
+}
+
+// 分组级关键词 → 预设回复（命中直接返回，不调用大模型）
+model KeywordRule {
+  id        String     @id @default(cuid())
+  groupId   String
+  group     ModelGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  keyword   String
+  matchType String     @default("contains") // "contains" | "exact"
+  reply     String
+  enabled   Boolean    @default(true)
+  order     Int        @default(0)
+  createdAt DateTime   @default(now())
+
+  @@index([groupId, enabled])
+}

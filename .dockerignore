@@ -1,0 +1,17 @@
+node_modules
+.next
+.git
+.claude
+data
+*.db
+*.db-journal
+*.db-wal
+.env
+.env.local
+.env.*.local
+npm-debug.log*
+yarn-error.log*
+Dockerfile
+docker-compose.yml
+.dockerignore
+*.md
