@@ -52,7 +52,7 @@ export function ChatInput({ onSend, onStop, isLoading, disabled, placeholder = "
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto"
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 140)}px`
     }
   }, [message])
 
@@ -65,7 +65,7 @@ export function ChatInput({ onSend, onStop, isLoading, disabled, placeholder = "
 
   return (
     <div
-      className="border-t border-gray-200 bg-white px-4 pt-4 dark:border-gray-800 dark:bg-gray-950"
+      className="bg-white px-4 pt-3 dark:bg-gray-950"
       style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}
     >
       {/* 圆角卡片输入框：textarea + 右下角动作按钮 */}
@@ -78,7 +78,7 @@ export function ChatInput({ onSend, onStop, isLoading, disabled, placeholder = "
           placeholder={isLoading ? "正在等待回复…" : placeholder}
           disabled={disabled || isLoading}
           rows={1}
-          className="block max-h-[120px] w-full resize-none bg-transparent px-4 py-3.5 pr-14 text-[15px] leading-relaxed text-gray-900 outline-none placeholder:text-gray-400 disabled:opacity-60 dark:text-gray-100"
+          className="block max-h-[140px] w-full resize-none bg-transparent px-4 py-4 pr-14 text-base leading-relaxed text-gray-900 outline-none placeholder:text-gray-400 disabled:opacity-60 dark:text-gray-100"
         />
 
         {/* 右下角圆形动作按钮：停止 / 发送 / 齿轮(选模型) */}
