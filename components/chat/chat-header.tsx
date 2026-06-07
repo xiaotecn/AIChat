@@ -92,7 +92,7 @@ export function ChatHeader() {
           <aside className="relative z-10 flex h-full w-[320px] flex-col bg-white shadow-2xl">
             {/* 头部 */}
             <header
-              className="flex items-center justify-between border-b border-gray-200 px-4 pb-4"
+              className="flex items-center justify-between px-4 pb-4"
               style={{ paddingTop: "calc(1rem + env(safe-area-inset-top))" }}
             >
               <h2 className="text-2xl font-bold">{siteName}</h2>
@@ -106,7 +106,7 @@ export function ChatHeader() {
 
             {/* 搜索框 */}
             {searchOpen && (
-              <div className="border-b border-gray-200 p-4">
+              <div className="p-4">
                 <div className="flex items-center gap-2 rounded-xl bg-gray-100 px-4 py-2">
                   <Search className="h-4 w-4 text-gray-400" />
                   <input
@@ -217,7 +217,7 @@ export function ChatHeader() {
             <Link
               href="/profile"
               onClick={closeDrawer}
-              className="flex items-center gap-3 border-t border-gray-200 p-4 hover:bg-gray-50"
+              className="flex items-center gap-3 p-4 hover:bg-gray-50"
             >
               {user?.avatar ? (
                 // eslint-disable-next-line @next/next/no-img-element
