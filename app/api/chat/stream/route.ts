@@ -183,10 +183,10 @@ export async function POST(request: NextRequest) {
       return buildStreamResponse(upstream, provider, messages, session.userId, userLabel)
     }
 
-    // 全部候选失败 / 未配置提供商 → 模拟响应（沿用最后一次解析到的 provider 文案）
+    // 全部候选失败 / 未配置提供商 → 简短「服务器不可用」提示（不计用量）
     const fallback =
       lastProvider ?? (await resolveChatProvider(candidates[0]))
-    return streamMockResponse(message, fallback, session.userId, userLabel)
+    return streamUnavailable(fallback, userLabel)
   } catch (error) {
     console.error("Chat stream API error:", error)
     return new Response(JSON.stringify({ error: "Internal server error" }), {
@@ -657,61 +657,27 @@ async function refundUserImage(userId: string) {
   }
 }
 
-// 模拟流式响应（当未配置任何 AI 提供商时使用），同样按额度单价计入用量
-function streamMockResponse(
-  message: string,
-  provider: ResolvedProvider,
-  userId: string,
-  userLabel: string
-) {
+// 兜底响应：未配置可用 AI 服务商 / 所有上游均失败时，回一条简短「服务器不可用」提示。
+// 不计入用量（不为失败向用户扣费），仅记一条 error 日志供后台排查。
+function streamUnavailable(provider: ResolvedProvider, userLabel: string) {
   const encoder = new TextEncoder()
+  const text = "⚠️ 当前服务器不可用，请稍后再试。"
 
   const stream = new ReadableStream({
     async start(controller) {
-      const response = `你好！我收到了你的消息："${message}"
-
-这是一个**模拟的 AI 响应**，因为后台还没有配置可用的 AI 提供商。
-
-## 🔧 如何接入真实 AI
-
-### 方式一：后台配置（推荐）
-1. 打开管理后台 → **AI 接口管理** (\`/admin/providers\`)
-2. 点击「添加接口」，填写：
-   - **Base URL**（兼容 OpenAI 格式，如 \`https://api.openai.com/v1\` 或任意中转地址）
-   - **API Key**
-3. 点击「测试连接」确认可用后保存
-4. 确保该提供商及其模型处于**启用**状态
-
-### 方式二：环境变量（本地开发）
-在 \`.env\` 中配置：
-\`\`\`
-OPENAI_API_KEY=sk-your-api-key-here
-OPENAI_BASE_URL=https://api.openai.com/v1
-\`\`\`
-然后重启开发服务器。
-
----
-
-当前请求的模型：**${provider.model}**
-
-配置完成后，这里就会返回真实的 AI 回复，并自动记录到「调用日志」中。`
-
-      for (const char of response) {
+      for (const char of text) {
         controller.enqueue(encoder.encode(char))
-        await new Promise((resolve) => setTimeout(resolve, 8))
+        await new Promise((resolve) => setTimeout(resolve, 12))
       }
       controller.close()
 
-      // 即便是模拟回复，也按额度单价扣减，保证用量统计一致
-      const tokens = estimateTokens(message + response)
       await logApiCall({
         provider,
         userLabel,
-        status: "success",
-        tokens,
-        message: `(模拟) ${response.length} 字符`,
+        status: "error",
+        tokens: 0,
+        message: "(服务不可用) 未配置可用服务商或全部上游失败",
       })
-      await bumpUserUsage(userId, tokens, provider.price)
     },
   })
 

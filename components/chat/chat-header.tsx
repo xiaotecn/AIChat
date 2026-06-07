@@ -65,24 +65,17 @@ export function ChatHeader() {
 
   return (
     <>
-      {/* 顶部导航栏 */}
+      {/* 顶部：仅菜单按钮，无标题 / 无分隔线，融入背景 */}
       <header
-        className="flex items-center justify-between border-b border-gray-200 bg-white px-4 pb-3"
-        style={{ paddingTop: "calc(0.75rem + env(safe-area-inset-top))" }}
+        className="flex items-center px-2 pb-2"
+        style={{ paddingTop: "calc(0.5rem + env(safe-area-inset-top))" }}
       >
         <button
           onClick={() => setDrawerOpen(true)}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-gray-100"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-gray-700 transition hover:bg-black/5"
         >
           <Menu className="h-5 w-5" />
         </button>
-
-        {/* 站点名（居中） */}
-        <div className="mx-2 flex-1 truncate text-center text-base font-semibold">
-          {siteName}
-        </div>
-
-        <div className="h-10 w-10 shrink-0" />
       </header>
 
       {/* 侧边抽屉 */}
