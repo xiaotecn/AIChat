@@ -64,7 +64,10 @@ export function ChatInput({ onSend, onStop, isLoading, disabled, placeholder = "
   }
 
   return (
-    <div className="border-t border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-950">
+    <div
+      className="border-t border-gray-200 bg-white px-4 pt-4 dark:border-gray-800 dark:bg-gray-950"
+      style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}
+    >
       {/* 圆角卡片输入框：textarea + 右下角动作按钮 */}
       <div className="relative rounded-3xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <textarea

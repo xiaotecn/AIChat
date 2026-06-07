@@ -66,7 +66,10 @@ export function ChatHeader() {
   return (
     <>
       {/* 顶部导航栏 */}
-      <header className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
+      <header
+        className="flex items-center justify-between border-b border-gray-200 bg-white px-4 pb-3"
+        style={{ paddingTop: "calc(0.75rem + env(safe-area-inset-top))" }}
+      >
         <button
           onClick={() => setDrawerOpen(true)}
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-gray-100"
@@ -95,7 +98,10 @@ export function ChatHeader() {
           {/* 抽屉内容 */}
           <aside className="relative z-10 flex h-full w-[320px] flex-col bg-white shadow-2xl">
             {/* 头部 */}
-            <header className="flex items-center justify-between border-b border-gray-200 p-4">
+            <header
+              className="flex items-center justify-between border-b border-gray-200 px-4 pb-4"
+              style={{ paddingTop: "calc(1rem + env(safe-area-inset-top))" }}
+            >
               <h2 className="text-2xl font-bold">{siteName}</h2>
               <button
                 onClick={() => setSearchOpen(!searchOpen)}

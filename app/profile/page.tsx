@@ -77,7 +77,7 @@ export default function ProfilePage() {
     <div className="flex h-full flex-col bg-gray-50 dark:bg-gray-950">
       <div className="flex-1 overflow-y-auto">
         {/* 渐变 hero：返回 + 标题 + 用户信息（点击进账号管理） */}
-        <div className="bg-gradient-to-br from-blue-600 to-cyan-500 px-5 pb-16 pt-4 text-white">
+        <div className="bg-gradient-to-br from-blue-600 to-cyan-500 px-5 pb-16 text-white" style={{ paddingTop: "calc(1rem + env(safe-area-inset-top))" }}>
           <div className="flex items-center gap-2">
             <Link
               href="/chat"

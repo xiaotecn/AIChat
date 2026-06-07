@@ -115,7 +115,10 @@ export default function ProfileEditPage() {
   return (
     <div className="flex h-full flex-col bg-gradient-to-b from-blue-50 to-white dark:from-gray-950 dark:to-gray-950">
       {/* 顶部 */}
-      <header className="flex items-center gap-3 border-b border-gray-200 bg-white/80 px-4 py-3 backdrop-blur dark:border-gray-800 dark:bg-gray-950/80">
+      <header
+        className="flex items-center gap-3 border-b border-gray-200 bg-white/80 px-4 pb-3 backdrop-blur dark:border-gray-800 dark:bg-gray-950/80"
+        style={{ paddingTop: "calc(0.75rem + env(safe-area-inset-top))" }}
+      >
         <Link
           href="/profile"
           className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
