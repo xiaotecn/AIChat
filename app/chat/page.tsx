@@ -53,6 +53,8 @@ export default function ChatPage() {
     updateMessage,
     loadConversations,
     loadMessages,
+    loadUser,
+    loadModelGroups,
   } = useChatStore()
 
   const activeConversation = conversations.find((c) => c.id === activeConversationId)
@@ -64,6 +66,30 @@ export default function ChatPage() {
   useEffect(() => {
     loadConversations()
   }, [loadConversations])
+
+  // 准实时刷新：回到前台时拉一遍（用户额度/可选分组/对话列表），并每 45s 轮询额度与分组，
+  // 让后台改动（套餐/额度/分组等）尽快反映到用户页面。真正的即时推送需 WebSocket，按需再加。
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return
+      loadUser()
+      loadModelGroups()
+      loadConversations()
+    }
+    document.addEventListener("visibilitychange", onVisible)
+    window.addEventListener("focus", onVisible)
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        loadUser()
+        loadModelGroups()
+      }
+    }, 45000)
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible)
+      window.removeEventListener("focus", onVisible)
+      clearInterval(timer)
+    }
+  }, [loadUser, loadModelGroups, loadConversations])
 
   // 切换/进入对话时按需加载其完整消息
   useEffect(() => {

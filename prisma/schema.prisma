@@ -145,6 +145,7 @@ model ModelGroup {
   avatarUrl   String?            // 分组自定义头像（data URI / 链接）；空则聊天回退默认 Bot 图标
   enabled     Boolean            @default(true)
   imageGen    Boolean            @default(false) // 开启后该分组走 /images/generations 生图，不走对话
+  systemPrompt String?           // 系统提示词（人设/规则）；作为发给模型的首条 system 消息，空则不发。用于锁定身份/防套话
   cursor      Int                @default(0) // 持久化轮询游标，跨请求轮转
   members     ModelGroupMember[]
   plans       PlanModelGroup[]

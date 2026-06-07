@@ -17,6 +17,7 @@ export async function PATCH(
         avatarUrl: data.avatarUrl,
         enabled: data.enabled,
         imageGen: data.imageGen,
+        systemPrompt: data.systemPrompt,
       },
     })
     return NextResponse.json({ success: true, data: group })

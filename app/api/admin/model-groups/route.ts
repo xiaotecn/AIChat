@@ -45,6 +45,7 @@ export async function GET() {
       avatarUrl: g.avatarUrl,
       enabled: g.enabled,
       imageGen: g.imageGen,
+      systemPrompt: g.systemPrompt,
       cursor: g.cursor,
       members: g.members.map((m) => ({
         modelId: m.modelId,
@@ -89,6 +90,7 @@ export async function POST(request: NextRequest) {
         avatarUrl: data.avatarUrl ?? null,
         enabled: data.enabled ?? true,
         imageGen: data.imageGen ?? false,
+        systemPrompt: data.systemPrompt ?? null,
       },
     })
     return NextResponse.json({ success: true, data: group })

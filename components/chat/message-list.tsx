@@ -27,24 +27,36 @@ async function copyText(text: string) {
   }
 }
 
-// 下载图片：优先 fetch 成 blob 触发下载（兼容 data URI 与同源/允许 CORS 的链接）；
-// 失败（多为跨域 CORS）则退化为新窗口打开，让用户长按 / 右键保存。
-async function downloadImage(src: string) {
+// 保存图片：移动端（尤其 iOS）优先调系统分享面板（navigator.share），用户选「存储图像 / Save to Photos」即可存进相册；
+// 桌面或不支持分享时退化为常规下载；都失败（多为跨域）则新窗口打开让用户长按保存。
+async function saveImage(src: string) {
   try {
     const res = await fetch(src)
     const blob = await res.blob()
     const ext = (blob.type.split("/")[1] || "png").split("+")[0]
+    const file = new File([blob], `image-${Date.now()}.${ext}`, { type: blob.type || "image/png" })
+
+    if (typeof navigator.share === "function" && navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file] })
+        return
+      } catch (e) {
+        if ((e as Error)?.name === "AbortError") return // 用户取消分享
+        // 其他错误：落到下载兜底
+      }
+    }
+
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
-    a.download = `image-${Date.now()}.${ext}`
+    a.download = file.name
     document.body.appendChild(a)
     a.click()
     a.remove()
     URL.revokeObjectURL(url)
   } catch {
     window.open(src, "_blank")
-    toast.info("无法直接下载，已在新窗口打开，请长按或右键保存")
+    toast.info("无法直接保存，已在新窗口打开，请长按选择「存储到照片」")
   }
 }
 
@@ -236,9 +248,9 @@ export function MessageList({ messages, onRetry, isLoading, assistantAvatar, use
           >
             <div className="flex items-center justify-end gap-2 p-3">
               <button
-                onClick={() => downloadImage(lightbox.src)}
+                onClick={() => saveImage(lightbox.src)}
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20"
-                title="下载图片"
+                title="保存图片"
               >
                 <Download className="h-5 w-5" />
               </button>

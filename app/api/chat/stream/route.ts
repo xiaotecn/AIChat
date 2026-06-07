@@ -122,6 +122,10 @@ export async function POST(request: NextRequest) {
 
     // 组装发送给模型的消息（历史 + 本轮用户消息）
     const messages: ChatMessage[] = [
+      // 系统提示词（人设/规则）：分组配了 systemPrompt 就作为首条 system 消息，用于锁定身份/防套话
+      ...(group?.systemPrompt?.trim()
+        ? [{ role: "system" as const, content: group.systemPrompt.trim() }]
+        : []),
       ...history
         .filter((m) => m && m.content && (m.role === "user" || m.role === "assistant"))
         .slice(-20) // 限制上下文长度，避免超出模型窗口
