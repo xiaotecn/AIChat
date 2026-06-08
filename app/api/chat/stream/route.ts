@@ -74,11 +74,17 @@ export async function POST(request: NextRequest) {
       } else {
         if (user.plan.messageLimit >= 0 && user.usedMessages >= user.plan.messageLimit) {
           return new Response(
-            JSON.stringify({ error: "本周期消息数已达上限，请升级套餐" }),
+            JSON.stringify({ error: "本周期消息数已达上限，请升级套餐或等待重置" }),
             { status: 403, headers: { "Content-Type": "application/json" } }
           )
         }
-        if (user.plan.tokenLimit >= 0 && user.usedTokens >= user.plan.tokenLimit) {
+        // Token 限制默认关闭——现按「消息数(可设为每日)」限流；usedTokens 仍照常累计供统计展示（数据继续）。
+        // 如需恢复按 token 限制，设环境变量 CHAT_ENFORCE_TOKEN_LIMIT=true。
+        if (
+          process.env.CHAT_ENFORCE_TOKEN_LIMIT === "true" &&
+          user.plan.tokenLimit >= 0 &&
+          user.usedTokens >= user.plan.tokenLimit
+        ) {
           return new Response(
             JSON.stringify({ error: "额度已用尽，请升级套餐或等待重置" }),
             { status: 403, headers: { "Content-Type": "application/json" } }
