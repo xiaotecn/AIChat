@@ -84,7 +84,7 @@ export default function ProfilePage() {
             <div className="mb-2 flex items-center gap-2">
               <div className="truncate text-[24px] font-bold leading-[1.1] text-[#202124]">{user?.name || "游客"}</div>
               <div className="inline-flex h-[21px] shrink-0 items-center rounded-[11px] border border-[#dde0e5] bg-[#f0f1f3] px-[9px] text-[13px] font-bold text-[#b7bac1]">
-                {isFree ? "FREE" : "VIP"}
+                {isFree ? "FREE" : planName}
               </div>
             </div>
             <div className="truncate text-[14px] text-[#8c8f96]">账号 ID：{user?.email || "—"}</div>
@@ -95,7 +95,7 @@ export default function ProfilePage() {
         {isFree ? (
           <section className="mb-3.5 rounded-[14px] p-5" style={{ background: GOLD_BG }}>
             <div className="mb-2 flex items-center justify-between gap-3">
-              <div className="text-[31px] font-extrabold leading-none text-[#9b5f00]">AI PRO</div>
+              <div className="text-[31px] font-extrabold leading-none text-[#9b5f00]">Plus</div>
               <div className="inline-flex h-6 items-center rounded-xl bg-[#9b5f00]/10 px-2.5 text-[13px] font-bold text-[#9b5f00]">
                 未开通
               </div>
@@ -173,16 +173,16 @@ export default function ProfilePage() {
           >
             <UserRound className="h-[26px] w-[26px] shrink-0 text-[#24262b]" strokeWidth={2.1} />
             账号管理
-            <span className="ml-auto text-[14px] font-medium text-[#8c8f96]">资料与密码</span>
+            <span className="ml-auto text-[14px] font-medium text-[#8c8f96]">资料修改</span>
             <ChevronRight className="h-[18px] w-[18px] shrink-0 text-[#191b20]" />
           </Link>
           <Link
-            href="/profile/edit"
+            href="/profile/settings"
             className="flex min-h-[64px] items-center gap-[13px] text-[17px] font-semibold text-[#202124]"
           >
             <ShieldCheck className="h-[26px] w-[26px] shrink-0 text-[#24262b]" strokeWidth={2.1} />
             账号安全
-            <span className="ml-auto text-[14px] font-medium text-[#8c8f96]">已保护</span>
+            <span className="ml-auto text-[14px] font-medium text-[#8c8f96]">密码修改</span>
             <ChevronRight className="h-[18px] w-[18px] shrink-0 text-[#191b20]" />
           </Link>
         </section>

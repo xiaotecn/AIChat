@@ -19,9 +19,6 @@ export default function ProfileEditPage() {
   const [hydrated, setHydrated] = useState(false)
   const [name, setName] = useState("")
   const [avatar, setAvatar] = useState<string | null>(null)
-  const [currentPassword, setCurrentPassword] = useState("")
-  const [newPassword, setNewPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
   const [saving, setSaving] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -55,35 +52,14 @@ export default function ProfileEditPage() {
       toast.error("账号名称只支持中文、英文、数字、下划线和短横线，1–15 字")
       return
     }
-    const wantChangePassword = Boolean(newPassword || confirmPassword || currentPassword)
-    if (wantChangePassword) {
-      if (!currentPassword) {
-        toast.error("请输入当前密码")
-        return
-      }
-      if (newPassword.length < 6) {
-        toast.error("新密码至少 6 位")
-        return
-      }
-      if (newPassword !== confirmPassword) {
-        toast.error("两次输入的新密码不一致")
-        return
-      }
-    }
 
     const body: {
       name: string
       avatar?: string | null
-      currentPassword?: string
-      newPassword?: string
     } = { name: nextName }
     // 头像有变化才发送（含「移除」= null）；未变则不传，避免无谓写库
     if (avatar !== (user?.avatar ?? null)) {
       body.avatar = avatar
-    }
-    if (wantChangePassword) {
-      body.currentPassword = currentPassword
-      body.newPassword = newPassword
     }
 
     setSaving(true)
@@ -125,7 +101,7 @@ export default function ProfileEditPage() {
         >
           <ArrowLeft className="h-5 w-5" />
         </Link>
-        <h1 className="flex-1 text-lg font-semibold">编辑个人资料</h1>
+        <h1 className="flex-1 text-lg font-semibold">账号管理</h1>
       </header>
 
       <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-5 pb-8 pt-6">
@@ -199,38 +175,6 @@ export default function ProfileEditPage() {
                 className="mt-1.5 w-full cursor-not-allowed rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-500 outline-none dark:border-gray-800 dark:bg-gray-800/50"
               />
             </label>
-          </div>
-
-          {/* 修改密码 */}
-          <div className="space-y-3 rounded-3xl bg-white p-5 shadow-sm dark:bg-gray-900">
-            <div className="flex items-baseline justify-between">
-              <h3 className="font-semibold text-gray-900 dark:text-gray-100">修改密码</h3>
-              <span className="text-xs text-gray-400">不填写则保持原密码</span>
-            </div>
-            <input
-              type="password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              placeholder="当前密码"
-              autoComplete="current-password"
-              className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-700 dark:bg-gray-800"
-            />
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="新密码，至少 6 位"
-              autoComplete="new-password"
-              className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-700 dark:bg-gray-800"
-            />
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="再次输入新密码"
-              autoComplete="new-password"
-              className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-700 dark:bg-gray-800"
-            />
           </div>
 
           {/* 操作 */}

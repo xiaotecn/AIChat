@@ -42,13 +42,20 @@ export async function POST(request: NextRequest) {
     const data = await request.json()
     const bcrypt = require('bcryptjs')
 
+    // 创建弹窗不再选套餐（订阅交由专门入口管理）：未显式指定时回退到系统默认套餐，保证新用户开箱即用
+    let planId: string | null = data.planId || null
+    if (!planId) {
+      const settings = await prisma.systemSettings.findFirst()
+      planId = settings?.defaultPlanId ?? null
+    }
+
     const user = await prisma.user.create({
       data: {
         name: data.name,
         email: data.email,
         passwordHash: await bcrypt.hash(data.password, 10),
         role: data.role || 'user',
-        planId: data.planId || null,
+        planId,
         status: data.status || 'active',
         expiresAt: data.expiresAt ? new Date(data.expiresAt) : null,
         subscriptionStatus: data.expiresAt ? 'active' : (data.subscriptionStatus || 'active'),

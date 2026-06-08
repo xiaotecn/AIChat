@@ -1,9 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { Menu, Plus, Search, X, Edit2, Trash2 } from "lucide-react"
+import { Plus, Search, X, Edit2, Trash2, MoreVertical } from "lucide-react"
 import { useChatStore } from "@/lib/store"
-import { formatDate } from "@/lib/utils"
 import Link from "next/link"
 import { useSiteName } from "@/components/site-name-provider"
 
@@ -14,6 +13,7 @@ export function ChatHeader() {
   const [editingId, setEditingId] = useState("")
   const [editingTitle, setEditingTitle] = useState("")
   const [deleteTargetId, setDeleteTargetId] = useState("")
+  const [menuOpenId, setMenuOpenId] = useState("")
   const siteName = useSiteName()
 
   const {
@@ -35,6 +35,38 @@ export function ChatHeader() {
     : conversations
 
   const deleteTarget = conversations.find((c) => c.id === deleteTargetId)
+
+  // 按时间分组对话
+  function groupConversationsByTime(convs: typeof conversations) {
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const yesterday = new Date(today.getTime() - 86400000)
+    const weekAgo = new Date(today.getTime() - 7 * 86400000)
+
+    const groups = {
+      今天: [] as typeof conversations,
+      昨天: [] as typeof conversations,
+      最近7天: [] as typeof conversations,
+      更早: [] as typeof conversations,
+    }
+
+    convs.forEach((conv) => {
+      const convDate = new Date(conv.updatedAt)
+      if (convDate >= today) {
+        groups.今天.push(conv)
+      } else if (convDate >= yesterday) {
+        groups.昨天.push(conv)
+      } else if (convDate >= weekAgo) {
+        groups.最近7天.push(conv)
+      } else {
+        groups.更早.push(conv)
+      }
+    })
+
+    return groups
+  }
+
+  const groupedConversations = groupConversationsByTime(filteredConversations)
 
   async function handleNewChat() {
     await createConversation("新对话", selectedModel)
@@ -65,17 +97,22 @@ export function ChatHeader() {
 
   return (
     <>
-      {/* 顶部：仅菜单按钮，无标题 / 无分隔线，融入背景 */}
+      {/* 顶部：菜单按钮 + 居中标题 */}
       <header
-        className="flex items-center px-2 pb-2"
+        className="flex items-center justify-between px-2 pb-2"
         style={{ paddingTop: "calc(0.5rem + env(safe-area-inset-top))" }}
       >
         <button
           onClick={() => setDrawerOpen(true)}
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-gray-700 transition hover:bg-black/5"
         >
-          <Menu className="h-5 w-5" />
+          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <line x1="4" y1="8" x2="20" y2="8" />
+            <line x1="4" y1="16" x2="20" y2="16" />
+          </svg>
         </button>
+        <h1 className="absolute left-1/2 -translate-x-1/2 text-base font-semibold text-gray-900">{siteName}</h1>
+        <div className="w-10" />
       </header>
 
       {/* 侧边抽屉 */}
@@ -137,80 +174,82 @@ export function ChatHeader() {
 
             {/* 对话列表 */}
             <div className="flex-1 overflow-y-auto p-4">
-              <p className="mb-2 text-xs text-gray-500">
-                {query ? `搜索结果 ${filteredConversations.length}` : "历史对话"}
-              </p>
-              <div className="space-y-2">
-                {filteredConversations.length === 0 ? (
-                  <p className="py-8 text-center text-sm text-gray-400">
-                    {query ? "没有找到相关对话" : "暂无历史会话"}
-                  </p>
-                ) : (
-                  filteredConversations.map((conv) => (
-                    <div
+              {filteredConversations.length === 0 ? (
+                <p className="py-8 text-center text-sm text-gray-400">
+                  {query ? "没有找到相关对话" : "暂无历史会话"}
+                </p>
+              ) : query ? (
+                // 搜索模式：不分组，直接列表
+                <div className="space-y-1">
+                  {filteredConversations.map((conv) => (
+                    <ConversationItem
                       key={conv.id}
-                      className={`group rounded-xl border p-3 ${
-                        activeConversationId === conv.id
-                          ? "border-blue-500 bg-blue-50"
-                          : "border-gray-200 hover:bg-gray-50"
-                      }`}
-                    >
-                      {editingId === conv.id ? (
-                        <form onSubmit={handleRename} className="flex gap-2">
-                          <input
-                            type="text"
-                            value={editingTitle}
-                            onChange={(e) => setEditingTitle(e.target.value)}
-                            className="flex-1 rounded-lg border border-gray-300 px-3 py-1 text-sm"
-                            autoFocus
-                          />
-                          <button
-                            type="submit"
-                            className="rounded-lg bg-blue-500 px-3 py-1 text-sm text-white"
-                          >
-                            保存
-                          </button>
-                        </form>
-                      ) : (
-                        <>
-                          <button
-                            onClick={() => {
-                              setActiveConversation(conv.id)
-                              closeDrawer()
-                            }}
-                            className="w-full text-left"
-                          >
-                            <h3 className="font-medium">{conv.title}</h3>
-                            <p className="mt-1 line-clamp-1 text-xs text-gray-500">
-                              {conv.messages[conv.messages.length - 1]?.content || "暂无消息"}
-                            </p>
-                            <p className="mt-1 text-xs text-gray-400">{formatDate(conv.updatedAt)}</p>
-                          </button>
-                          <div className="mt-2 flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-                            <button
-                              onClick={() => {
+                      conv={conv}
+                      isActive={activeConversationId === conv.id}
+                      isEditing={editingId === conv.id}
+                      editingTitle={editingTitle}
+                      menuOpen={menuOpenId === conv.id}
+                      onSetActive={() => {
+                        setActiveConversation(conv.id)
+                        closeDrawer()
+                      }}
+                      onToggleMenu={() => setMenuOpenId(menuOpenId === conv.id ? "" : conv.id)}
+                      onStartEdit={() => {
+                        setEditingId(conv.id)
+                        setEditingTitle(conv.title)
+                        setMenuOpenId("")
+                      }}
+                      onDelete={() => {
+                        setDeleteTargetId(conv.id)
+                        setMenuOpenId("")
+                      }}
+                      onSaveEdit={handleRename}
+                      onChangeTitle={(val) => setEditingTitle(val)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                // 正常模式：按时间分组
+                <div className="space-y-4">
+                  {(Object.keys(groupedConversations) as Array<keyof typeof groupedConversations>).map((groupKey) => {
+                    const groupConvs = groupedConversations[groupKey]
+                    if (groupConvs.length === 0) return null
+                    return (
+                      <div key={groupKey}>
+                        <p className="mb-2 text-xs font-medium text-gray-400">{groupKey}</p>
+                        <div className="space-y-1">
+                          {groupConvs.map((conv) => (
+                            <ConversationItem
+                              key={conv.id}
+                              conv={conv}
+                              isActive={activeConversationId === conv.id}
+                              isEditing={editingId === conv.id}
+                              editingTitle={editingTitle}
+                              menuOpen={menuOpenId === conv.id}
+                              onSetActive={() => {
+                                setActiveConversation(conv.id)
+                                closeDrawer()
+                              }}
+                              onToggleMenu={() => setMenuOpenId(menuOpenId === conv.id ? "" : conv.id)}
+                              onStartEdit={() => {
                                 setEditingId(conv.id)
                                 setEditingTitle(conv.title)
+                                setMenuOpenId("")
                               }}
-                              className="flex items-center gap-1 text-xs text-gray-500 hover:text-blue-500"
-                            >
-                              <Edit2 className="h-3 w-3" />
-                              重命名
-                            </button>
-                            <button
-                              onClick={() => setDeleteTargetId(conv.id)}
-                              className="flex items-center gap-1 text-xs text-gray-500 hover:text-red-500"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                              删除
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
+                              onDelete={() => {
+                                setDeleteTargetId(conv.id)
+                                setMenuOpenId("")
+                              }}
+                              onSaveEdit={handleRename}
+                              onChangeTitle={(val) => setEditingTitle(val)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
 
             {/* 底部用户信息 */}
@@ -256,6 +295,116 @@ export function ChatHeader() {
                 删除
               </button>
             </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+// 单个对话项组件
+function ConversationItem({
+  conv,
+  isActive,
+  isEditing,
+  editingTitle,
+  menuOpen,
+  onSetActive,
+  onToggleMenu,
+  onStartEdit,
+  onDelete,
+  onSaveEdit,
+  onChangeTitle,
+}: {
+  conv: { id: string; title: string; updatedAt: Date; messages: any[] }
+  isActive: boolean
+  isEditing: boolean
+  editingTitle: string
+  menuOpen: boolean
+  onSetActive: () => void
+  onToggleMenu: () => void
+  onStartEdit: () => void
+  onDelete: () => void
+  onSaveEdit: (e: React.FormEvent) => void
+  onChangeTitle: (val: string) => void
+}) {
+  if (isEditing) {
+    return (
+      <form onSubmit={onSaveEdit} className="flex gap-2 rounded-lg bg-gray-50 p-2">
+        <input
+          type="text"
+          value={editingTitle}
+          onChange={(e) => onChangeTitle(e.target.value)}
+          className="flex-1 rounded border border-gray-300 px-2 py-1 text-sm outline-none focus:border-blue-500"
+          autoFocus
+        />
+        <button
+          type="submit"
+          className="rounded bg-blue-500 px-3 text-sm font-medium text-white hover:bg-blue-600"
+        >
+          保存
+        </button>
+      </form>
+    )
+  }
+
+  return (
+    <>
+      <div
+        className={`relative flex items-center gap-2 rounded-lg px-3 py-2.5 transition ${
+          isActive
+            ? "bg-gray-100 font-medium text-gray-900"
+            : "text-gray-700 hover:bg-gray-50"
+        }`}
+      >
+        <button onClick={onSetActive} className="flex-1 truncate text-left text-sm">
+          {conv.title}
+        </button>
+        {/* 选中时始终显示三点菜单 */}
+        {isActive && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggleMenu()
+            }}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-600 transition hover:bg-gray-200"
+          >
+            <MoreVertical className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
+      {/* 底部弹出菜单（仿千问样式） */}
+      {menuOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <button
+            onClick={onToggleMenu}
+            className="absolute inset-0 bg-black/30"
+            aria-label="关闭菜单"
+          />
+          <div className="relative z-10 mb-3 w-[calc(100%-1.5rem)] max-w-md rounded-3xl bg-white shadow-2xl">
+            <div className="divide-y divide-gray-100">
+              <button
+                onClick={onStartEdit}
+                className="flex w-full items-center gap-3 px-6 py-4 text-left text-gray-900 transition hover:bg-gray-50"
+              >
+                <Edit2 className="h-5 w-5 text-gray-600" />
+                <span className="text-base">修改标题</span>
+              </button>
+              <button
+                onClick={onDelete}
+                className="flex w-full items-center gap-3 px-6 py-4 text-left text-red-600 transition hover:bg-red-50"
+              >
+                <Trash2 className="h-5 w-5" />
+                <span className="text-base">删除</span>
+              </button>
+            </div>
+            <button
+              onClick={onToggleMenu}
+              className="w-full border-t-8 border-gray-100 py-3.5 text-center text-base font-medium text-gray-700"
+            >
+              取消
+            </button>
           </div>
         </div>
       )}
