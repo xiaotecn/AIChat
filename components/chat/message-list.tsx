@@ -60,6 +60,45 @@ async function saveImage(src: string) {
   }
 }
 
+// 生图加载态：空图骨架 + 旋转 + 已用时 + 缓动进度条（指数逼近 ~95%，出图前不填满，避免虚假完成）。
+// startedAt 取消息 createdAt：新发与「重载续看」都能算出真实已用时。
+function ImageGenLoading({ startedAt }: { startedAt: Date }) {
+  const [elapsed, setElapsed] = useState(0)
+  useEffect(() => {
+    const start = new Date(startedAt).getTime()
+    const tick = () => setElapsed(Math.max(0, Math.floor((Date.now() - start) / 1000)))
+    tick()
+    const t = setInterval(tick, 1000)
+    return () => clearInterval(t)
+  }, [startedAt])
+
+  const pct = Math.round(95 * (1 - Math.exp(-elapsed / 50)))
+  const mm = Math.floor(elapsed / 60)
+  const ss = String(elapsed % 60).padStart(2, "0")
+
+  return (
+    <div className="w-[220px] max-w-full">
+      <div className="relative aspect-square w-full overflow-hidden rounded-xl border border-gray-200 bg-gradient-to-br from-gray-100 to-gray-200 dark:border-gray-700 dark:from-gray-800 dark:to-gray-900">
+        <div className="absolute inset-0 animate-pulse bg-gray-200/50 dark:bg-gray-700/40" />
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-gray-500 dark:text-gray-400">
+          <Loader2 className="h-7 w-7 animate-spin" />
+          <span className="text-xs">正在生成图片…</span>
+        </div>
+      </div>
+      <div className="mt-2 flex items-center justify-between text-[11px] text-gray-400">
+        <span>已用 {mm}:{ss}</span>
+        <span>预计 1–2 分钟</span>
+      </div>
+      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 transition-all duration-1000 ease-out"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  )
+}
+
 export function MessageList({ messages, onRetry, isLoading, assistantAvatar, userAvatar }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -102,6 +141,8 @@ export function MessageList({ messages, onRetry, isLoading, assistantAvatar, use
         const isLast = index === messages.length - 1
         // 助手消息生成完成且有内容时，才显示操作栏
         const showActions = isAssistant && !streaming && !!message.content
+        // 生图任务进行中（占位文案以 🎨 开头）：用「空图骨架 + 计时」加载态替代纯文字
+        const isImagePending = isAssistant && streaming && message.content.startsWith("🎨")
 
         return (
           <motion.div
@@ -164,6 +205,9 @@ export function MessageList({ messages, onRetry, isLoading, assistantAvatar, use
                     <Loader2 className="h-4 w-4 animate-spin" />
                     <span className="text-sm opacity-70">正在思考...</span>
                   </div>
+                ) : isImagePending ? (
+                  // 生图进行中：空图骨架 + 已用时 + 缓动进度条
+                  <ImageGenLoading startedAt={message.createdAt} />
                 ) : (
                   // 边流式边渲染内容；生成中在末尾加一个闪烁光标
                   <div className="prose prose-sm dark:prose-invert max-w-none">
