@@ -87,7 +87,7 @@ interface ChatStore {
   user: User | null
   allUsers: User[]
   setUser: (user: User | null) => void
-  loadUser: () => Promise<void>
+  loadUser: () => Promise<boolean>
   setAllUsers: (users: User[]) => void
   addUser: (user: User) => void
   updateUser: (id: string, updates: Partial<User>) => void
@@ -148,10 +148,13 @@ export const useChatStore = create<ChatStore>()(
       loadUser: async () => {
         try {
           const res = await fetch('/api/auth/me')
-          if (!res.ok) {
+          // 明确未登录(401) → 清空并返回 false（AuthGate 据此跳登录）
+          if (res.status === 401) {
             set({ user: null })
-            return
+            return false
           }
+          // 其它非 2xx（5xx 等）：不确定，不踢人
+          if (!res.ok) return true
           const result = await res.json()
           if (result?.success && result.data) {
             const u = result.data
@@ -175,11 +178,13 @@ export const useChatStore = create<ChatStore>()(
                 createdAt: new Date(),
               },
             })
-          } else {
-            set({ user: null })
+            return true
           }
+          set({ user: null })
+          return false
         } catch (e) {
           console.error('加载用户失败:', e)
+          return true // 网络异常：不踢出
         }
       },
       setAllUsers: (users) => set({ allUsers: users }),
