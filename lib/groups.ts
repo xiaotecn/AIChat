@@ -76,14 +76,22 @@ export async function getGroupsForUser(
   const links = await prisma.planModelGroup.findMany({
     where: { planId, group: { enabled: true } },
     include: {
-      group: { include: { _count: { select: { members: true } } } },
+      group: {
+        include: {
+          // 只数「可用」成员（模型与其提供商均启用）；据此 memberCount=0 的分组前端不展示
+          members: {
+            where: { model: { enabled: true, provider: { enabled: true } } },
+            select: { modelId: true },
+          },
+        },
+      },
     },
   })
   return links.map((l) => ({
     id: l.group.id,
     name: l.group.name,
     description: l.group.description,
-    memberCount: l.group._count.members,
+    memberCount: l.group.members.length,
     avatarUrl: l.group.avatarUrl,
   }))
 }

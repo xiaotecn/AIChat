@@ -147,7 +147,7 @@ export const useChatStore = create<ChatStore>()(
       // 使名称/头像在抽屉、资料卡、聊天气泡等处即时生效。
       loadUser: async () => {
         try {
-          const res = await fetch('/api/auth/me')
+          const res = await fetch('/api/auth/me', { cache: 'no-store' })
           // 明确未登录(401) → 清空并返回 false（AuthGate 据此跳登录）
           if (res.status === 401) {
             set({ user: null })
@@ -264,7 +264,7 @@ export const useChatStore = create<ChatStore>()(
       // 从数据库加载当前用户的对话列表（保留已加载的完整消息）
       loadConversations: async () => {
         try {
-          const res = await fetch('/api/conversations')
+          const res = await fetch('/api/conversations', { cache: 'no-store' })
           if (!res.ok) {
             set({ conversations: [], conversationsLoaded: true })
             return
@@ -336,7 +336,7 @@ export const useChatStore = create<ChatStore>()(
       // 头像列表只放内存（partialize 白名单不含 modelGroups），不写入 localStorage。
       loadModelGroups: async () => {
         try {
-          const res = await fetch('/api/model-groups')
+          const res = await fetch('/api/model-groups', { cache: 'no-store' })
           if (!res.ok) return
           const result = await res.json()
           if (!result.success || !Array.isArray(result.data)) return
