@@ -71,6 +71,7 @@ model Message {
   id             String       @id @default(cuid())
   role           String
   content        String
+  images         String?      // 用户带图提问的图片：JSON 字符串，存 /api/uploads/... 站内路径数组；纯文本消息为 null
   status         String       @default("done") // 普通消息 done；生图任务 pending → done/error（异步落库，供前端轮询）
 
   conversationId String
@@ -145,6 +146,7 @@ model ModelGroup {
   avatarUrl   String?            // 分组自定义头像（data URI / 链接）；空则聊天回退默认 Bot 图标
   enabled     Boolean            @default(true)
   imageGen    Boolean            @default(false) // 开启后该分组走 /images/generations 生图，不走对话
+  vision      Boolean            @default(false) // 开启后该分组允许用户带图提问（多模态输入）；成员须为视觉模型
   systemPrompt String?           // 系统提示词（人设/规则）；作为发给模型的首条 system 消息，空则不发。用于锁定身份/防套话
   cursor      Int                @default(0) // 持久化轮询游标，跨请求轮转
   members     ModelGroupMember[]

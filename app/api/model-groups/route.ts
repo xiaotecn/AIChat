@@ -23,6 +23,7 @@ export async function GET() {
         description: g.description,
         memberCount: g.memberCount,
         avatarUrl: g.avatarUrl,
+        vision: g.vision,
       })),
     })
   } catch (error) {

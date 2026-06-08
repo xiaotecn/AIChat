@@ -45,6 +45,7 @@ export async function GET() {
       avatarUrl: g.avatarUrl,
       enabled: g.enabled,
       imageGen: g.imageGen,
+      vision: g.vision,
       systemPrompt: g.systemPrompt,
       cursor: g.cursor,
       members: g.members.map((m) => ({
@@ -90,6 +91,7 @@ export async function POST(request: NextRequest) {
         avatarUrl: data.avatarUrl ?? null,
         enabled: data.enabled ?? true,
         imageGen: data.imageGen ?? false,
+        vision: data.vision ?? false,
         systemPrompt: data.systemPrompt ?? null,
       },
     })

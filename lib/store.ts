@@ -5,6 +5,8 @@ export interface Message {
   id: string
   role: 'user' | 'assistant' | 'system'
   content: string
+  // 用户带图提问的图片地址（/api/uploads/... 或本地未落盘的 data URI），按需展示
+  images?: string[]
   createdAt: Date
   status?: 'sending' | 'success' | 'error'
   // 对应的数据库行 id（持久化后回填），用于「重新生成」时删除旧回复
@@ -50,6 +52,8 @@ export interface ModelGroupOption {
   description: string | null
   memberCount: number
   avatarUrl: string | null
+  // 是否为「视觉/图文识别」分组：为真时聊天输入框显示上传图片按钮，允许带图提问
+  vision: boolean
 }
 
 export interface Plan {
@@ -134,6 +138,21 @@ interface ChatStore {
   // 系统设置
   settings: SystemSettings
   setSettings: (settings: Partial<SystemSettings>) => void
+}
+
+// 把数据库里存的 images（JSON 字符串）安全解析成字符串数组；空/损坏均返回 undefined。
+function parseImages(raw?: string | null): string[] | undefined {
+  if (!raw) return undefined
+  try {
+    const arr = JSON.parse(raw)
+    if (Array.isArray(arr)) {
+      const list = arr.filter((x): x is string => typeof x === 'string' && x.length > 0)
+      return list.length ? list : undefined
+    }
+  } catch {
+    // 忽略损坏数据
+  }
+  return undefined
 }
 
 export const useChatStore = create<ChatStore>()(
@@ -310,10 +329,11 @@ export const useChatStore = create<ChatStore>()(
           const result = await res.json()
           if (!result.success) return
           const messages: Message[] = result.data.map(
-            (m: { id: string; role: string; content: string; createdAt: string; status?: string }) => ({
+            (m: { id: string; role: string; content: string; images?: string | null; createdAt: string; status?: string }) => ({
               id: m.id,
               role: m.role as Message['role'],
               content: m.content,
+              images: parseImages(m.images),
               createdAt: new Date(m.createdAt),
               // 生图 pending → 本地 'sending'（重载后会自动续轮询）；error → 'error'；其余 'success'
               status: m.status === 'pending' ? 'sending' : m.status === 'error' ? 'error' : 'success',

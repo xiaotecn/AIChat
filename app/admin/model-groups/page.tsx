@@ -42,6 +42,7 @@ interface Group {
   avatarUrl: string | null
   enabled: boolean
   imageGen: boolean
+  vision: boolean
   systemPrompt: string | null
   cursor: number
   members: Member[]
@@ -80,7 +81,7 @@ export default function AdminModelGroups() {
   // 建/改分组弹窗
   const [showGroupModal, setShowGroupModal] = useState(false)
   const [editingGroup, setEditingGroup] = useState<Group | null>(null)
-  const [groupForm, setGroupForm] = useState({ name: "", description: "", enabled: true, imageGen: false, avatarUrl: "", systemPrompt: "" })
+  const [groupForm, setGroupForm] = useState({ name: "", description: "", enabled: true, imageGen: false, vision: false, avatarUrl: "", systemPrompt: "" })
   const [savingGroup, setSavingGroup] = useState(false)
   const avatarInputRef = useRef<HTMLInputElement>(null)
 
@@ -122,13 +123,13 @@ export default function AdminModelGroups() {
   // ── 分组基础 CRUD ──
   const handleAddGroup = () => {
     setEditingGroup(null)
-    setGroupForm({ name: "", description: "", enabled: true, imageGen: false, avatarUrl: "", systemPrompt: "" })
+    setGroupForm({ name: "", description: "", enabled: true, imageGen: false, vision: false, avatarUrl: "", systemPrompt: "" })
     setShowGroupModal(true)
   }
 
   const handleEditGroup = (g: Group) => {
     setEditingGroup(g)
-    setGroupForm({ name: g.name, description: g.description || "", enabled: g.enabled, imageGen: g.imageGen, avatarUrl: g.avatarUrl || "", systemPrompt: g.systemPrompt || "" })
+    setGroupForm({ name: g.name, description: g.description || "", enabled: g.enabled, imageGen: g.imageGen, vision: g.vision, avatarUrl: g.avatarUrl || "", systemPrompt: g.systemPrompt || "" })
     setShowGroupModal(true)
   }
 
@@ -334,6 +335,11 @@ export default function AdminModelGroups() {
                           {g.imageGen && (
                             <span className="shrink-0 px-2 py-0.5 rounded-md bg-purple-100 text-purple-700 text-xs font-semibold">
                               🖼 生图
+                            </span>
+                          )}
+                          {g.vision && (
+                            <span className="shrink-0 px-2 py-0.5 rounded-md bg-blue-100 text-blue-700 text-xs font-semibold">
+                              👁 识图
                             </span>
                           )}
                         </div>
@@ -557,6 +563,23 @@ export default function AdminModelGroups() {
                 </div>
                 <p className="text-xs text-gray-500 mt-2 pl-8">
                   开启后该分组直接调用 <code>/v1/images/generations</code> 生图：用户发送的消息将作为绘图提示词，不走对话。
+                </p>
+              </div>
+              <div className="rounded-xl border border-gray-200 p-3">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="group-vision"
+                    checked={groupForm.vision}
+                    onChange={(e) => setGroupForm({ ...groupForm, vision: e.target.checked })}
+                    className="w-5 h-5 rounded border-gray-300"
+                  />
+                  <label htmlFor="group-vision" className="text-sm font-medium text-gray-700">
+                    图文识别（视觉输入）
+                  </label>
+                </div>
+                <p className="text-xs text-gray-500 mt-2 pl-8">
+                  开启后用户可在该分组「上传图片 + 文字」一起提问；<b>成员须为视觉模型</b>（如 GPT-4o、Qwen-VL、Gemini 等），否则模型会忽略图片。
                 </p>
               </div>
             </div>

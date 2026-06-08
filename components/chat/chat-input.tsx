@@ -1,22 +1,29 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Settings2, ArrowUp, Square, Check } from "lucide-react"
+import { ArrowUp, Square, Check, ChevronDown, ImagePlus, X } from "lucide-react"
 import { useChatStore } from "@/lib/store"
 import { cn } from "@/lib/utils"
+import { downscaleImageToDataUrl } from "@/lib/image"
+import { toast } from "@/components/ui/toast"
 
 interface ChatInputProps {
-  onSend: (message: string) => void
+  onSend: (message: string, images?: string[]) => void
   onStop?: () => void
   isLoading?: boolean
   disabled?: boolean
   placeholder?: string
 }
 
+// 单条消息最多带几张图（与后端一致）
+const MAX_IMAGES = 4
+
 export function ChatInput({ onSend, onStop, isLoading, disabled, placeholder = "发消息…" }: ChatInputProps) {
   const [message, setMessage] = useState("")
+  const [images, setImages] = useState<string[]>([]) // 当前待发送图片（data URI）
   const [sheetOpen, setSheetOpen] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
 
   const {
     modelGroups,
@@ -27,24 +34,53 @@ export function ChatInput({ onSend, onStop, isLoading, disabled, placeholder = "
     updateConversation,
   } = useChatStore()
 
-  // 加载订阅可见的模型分组（含头像）；默认选中逻辑已收敛进 store.loadModelGroups
+  // 加载订阅可见的模型分组（含头像 / vision 标记）；默认选中逻辑已收敛进 store.loadModelGroups
   useEffect(() => {
     loadModelGroups()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const hasContent = Boolean(message.trim())
+  const selectedGroup = modelGroups.find((g) => g.id === selectedModel)
+  // 仅「视觉分组」显示上传图片按钮（允许带图提问）
+  const canVision = !!selectedGroup?.vision
+
+  // 切到非视觉分组时清掉已选图片，避免误带到不支持读图的模型
+  useEffect(() => {
+    if (!canVision && images.length) setImages([])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canVision])
+
+  const canSend = (Boolean(message.trim()) || images.length > 0) && !isLoading && !disabled
 
   const handleSend = () => {
-    if (!message.trim() || isLoading || disabled) return
-    onSend(message.trim())
+    if ((!message.trim() && images.length === 0) || isLoading || disabled) return
+    onSend(message.trim(), images.length ? images : undefined)
     setMessage("")
+    setImages([])
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
       handleSend()
+    }
+  }
+
+  // 选图 → 压缩成 data URI（最长边 1024px，让模型看清细节）→ 入列（最多 MAX_IMAGES 张）
+  const handlePickImages = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    const room = MAX_IMAGES - images.length
+    if (room <= 0) {
+      toast.info(`最多上传 ${MAX_IMAGES} 张图片`)
+      return
+    }
+    for (const file of Array.from(files).slice(0, room)) {
+      try {
+        const dataUrl = await downscaleImageToDataUrl(file, 1024)
+        setImages((prev) => (prev.length >= MAX_IMAGES ? prev : [...prev, dataUrl]))
+      } catch (e) {
+        toast.error((e as Error).message || "图片处理失败")
+      }
     }
   }
 
@@ -68,8 +104,32 @@ export function ChatInput({ onSend, onStop, isLoading, disabled, placeholder = "
       className="bg-white px-4 pt-3 dark:bg-gray-950"
       style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}
     >
-      {/* 圆角卡片输入框：textarea + 右下角动作按钮 */}
-      <div className="relative rounded-3xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      {/* 圆角卡片：图片预览行(可选) + 文本框 + 底部动作行 */}
+      <div className="rounded-[22px] border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        {/* 已选图片缩略图（右上角 × 移除） */}
+        {images.length > 0 && (
+          <div className="flex flex-wrap gap-2 px-3 pt-3">
+            {images.map((src, i) => (
+              <div key={i} className="relative h-16 w-16">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={src}
+                  alt=""
+                  className="h-16 w-16 rounded-lg border border-gray-200 object-cover dark:border-gray-700"
+                />
+                <button
+                  type="button"
+                  onClick={() => setImages((prev) => prev.filter((_, idx) => idx !== i))}
+                  className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-gray-900/80 text-white shadow"
+                  aria-label="移除图片"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         <textarea
           ref={textareaRef}
           value={message}
@@ -78,40 +138,78 @@ export function ChatInput({ onSend, onStop, isLoading, disabled, placeholder = "
           placeholder={isLoading ? "正在等待回复…" : placeholder}
           disabled={disabled || isLoading}
           rows={1}
-          className="block max-h-[140px] w-full resize-none bg-transparent px-4 py-4 pr-14 text-base leading-relaxed text-gray-900 outline-none placeholder:text-gray-400 disabled:opacity-60 dark:text-gray-100"
+          className="block max-h-[140px] w-full resize-none bg-transparent px-4 pb-1 pt-3.5 text-base leading-relaxed text-gray-900 outline-none placeholder:text-gray-400 disabled:opacity-60 dark:text-gray-100"
         />
 
-        {/* 右下角圆形动作按钮：停止 / 发送 / 齿轮(选模型) */}
-        <div className="absolute bottom-2.5 right-2.5">
-          {isLoading && onStop ? (
-            <button
-              type="button"
-              onClick={onStop}
-              title="停止生成"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-red-500 text-white shadow-md transition hover:bg-red-600"
-            >
-              <Square className="h-4 w-4 fill-current" />
-            </button>
-          ) : hasContent ? (
-            <button
-              type="button"
-              onClick={handleSend}
-              disabled={disabled}
-              title="发送"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-[#1a2333] text-white shadow-md transition hover:bg-[#2a3346] disabled:opacity-50"
-            >
-              <ArrowUp className="h-5 w-5" />
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setSheetOpen(true)}
-              title="选择模型"
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
-            >
-              <Settings2 className="h-[18px] w-[18px]" />
-            </button>
+        {/* 底部动作行：左=上传(仅视觉分组)+选模型胶囊；右=发送/停止 */}
+        <div className="flex items-center gap-2 px-2.5 pb-2.5 pt-1">
+          {canVision && (
+            <>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  handlePickImages(e.target.files)
+                  e.target.value = ""
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                title="上传图片"
+                disabled={images.length >= MAX_IMAGES}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 transition hover:bg-gray-50 disabled:opacity-40 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+              >
+                <ImagePlus className="h-[19px] w-[19px]" />
+              </button>
+            </>
           )}
+
+          {/* 模型选择胶囊（头像 + 名称 + 下拉） */}
+          <button
+            type="button"
+            onClick={() => setSheetOpen(true)}
+            title="选择模型"
+            className="flex h-9 min-w-0 items-center gap-1.5 rounded-full border border-gray-200 bg-white pl-1.5 pr-2.5 text-sm text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+          >
+            {selectedGroup?.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={selectedGroup.avatarUrl} alt="" className="h-6 w-6 shrink-0 rounded-full object-cover" />
+            ) : (
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-purple-600 to-pink-500 text-[11px] font-bold text-white">
+                {(selectedGroup?.name ?? "AI").slice(0, 1).toUpperCase()}
+              </span>
+            )}
+            <span className="max-w-[120px] truncate font-medium">{selectedGroup?.name ?? "选择模型"}</span>
+            <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
+          </button>
+
+          {/* 发送 / 停止 */}
+          <div className="ml-auto">
+            {isLoading && onStop ? (
+              <button
+                type="button"
+                onClick={onStop}
+                title="停止生成"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-red-500 text-white shadow-md transition hover:bg-red-600"
+              >
+                <Square className="h-4 w-4 fill-current" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleSend}
+                disabled={!canSend}
+                title="发送"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-[#2f6bff] text-white shadow-md transition hover:bg-[#1e5bef] disabled:opacity-40"
+              >
+                <ArrowUp className="h-5 w-5" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -171,6 +269,11 @@ export function ChatInput({ onSend, onStop, isLoading, disabled, placeholder = "
                         <b className="block truncate text-sm font-semibold text-gray-900 dark:text-gray-100">
                           {g.name}
                         </b>
+                        {g.vision && (
+                          <span className="shrink-0 rounded bg-[#2f6bff]/10 px-1.5 py-0.5 text-[11px] font-semibold text-[#2f6bff]">
+                            识图
+                          </span>
+                        )}
                       </span>
                       {active && <Check className="h-5 w-5 shrink-0 text-[#2f6bff]" />}
                     </button>

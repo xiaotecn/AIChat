@@ -6,9 +6,31 @@ import { maybeResetUsage, maybeExpireSubscription } from "@/lib/quota"
 import { matchKeywordRule, resolveGroupModels, recordLatency } from "@/lib/groups"
 import { persistImage } from "@/lib/image-store"
 
+type ChatContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } }
+
 interface ChatMessage {
   role: "user" | "assistant" | "system"
-  content: string
+  content: string | ChatContentPart[]
+}
+
+// 末条用户消息：vision 分组且带图 → 多模态数组（文本 + 各图 image_url）；否则纯文本（行为不变）。
+function buildUserMessage(text: string, images: string[]): ChatMessage {
+  if (images.length === 0) return { role: "user", content: text }
+  return {
+    role: "user",
+    content: [
+      { type: "text", text },
+      ...images.map((url) => ({ type: "image_url" as const, image_url: { url } })),
+    ],
+  }
+}
+
+// 把消息 content（可能是多模态数组）拍平成纯文本，用于 token 估算 / 日志。
+function contentToText(content: string | ChatContentPart[]): string {
+  if (typeof content === "string") return content
+  return content.map((p) => (p.type === "text" ? p.text : "")).join("")
 }
 
 // 生图是「同步挂住连接直到出图」的慢请求（常见 2–4 分钟，故 180s 远不够）。
@@ -38,6 +60,11 @@ export async function POST(request: NextRequest) {
     const userLabel: string = session.email
     // 客户端可传入历史消息以支持多轮上下文
     const history: ChatMessage[] = Array.isArray(body.history) ? body.history : []
+    // vision 分组：客户端可带「当前轮」图片（data URI 数组，最多 4 张）发给视觉模型；
+    // 历史仍是纯文本，不重发历史图（避免每轮 token 膨胀）。
+    const images: string[] = Array.isArray(body.images)
+      ? body.images.filter((u: unknown): u is string => typeof u === "string" && u.length > 0).slice(0, 4)
+      : []
 
     if (!message) {
       return new Response(JSON.stringify({ error: "Message is required" }), {
@@ -136,7 +163,8 @@ export async function POST(request: NextRequest) {
         .filter((m) => m && m.content && (m.role === "user" || m.role === "assistant"))
         .slice(-20) // 限制上下文长度，避免超出模型窗口
         .map((m) => ({ role: m.role, content: m.content })),
-      { role: "user", content: message },
+      // 末条用户消息：vision 分组且带图时用多模态数组，否则纯文本（行为不变）
+      buildUserMessage(message, group?.vision ? images : []),
     ]
 
     // ── 故障转移循环：依次尝试候选模型，首个成功者选定并流式返回 ──
@@ -272,7 +300,7 @@ function buildStreamResponse(
 
         const tokens =
           reportedTokens ||
-          estimateTokens(messages.map((m) => m.content).join("") + fullContent)
+          estimateTokens(messages.map((m) => contentToText(m.content)).join("") + fullContent)
 
         // 记录调用日志 + 按额度单价加权扣减用量（不阻塞响应关闭）
         await logApiCall({

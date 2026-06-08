@@ -63,6 +63,7 @@ export interface UserGroup {
   description: string | null
   memberCount: number
   avatarUrl: string | null
+  vision: boolean
 }
 
 /**
@@ -93,6 +94,7 @@ export async function getGroupsForUser(
     description: l.group.description,
     memberCount: l.group.members.length,
     avatarUrl: l.group.avatarUrl,
+    vision: l.group.vision,
   }))
 }
 

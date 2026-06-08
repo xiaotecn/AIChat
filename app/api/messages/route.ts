@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getSession } from "@/lib/auth"
+import { persistImage } from "@/lib/image-store"
 
 // 确认对话归属当前登录用户
 async function ownsConversation(conversationId: string, userId: string) {
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "未登录" }, { status: 401 })
     }
 
-    const { conversationId, role, content, tokens } = await request.json()
+    const { conversationId, role, content, tokens, images } = await request.json()
     if (!conversationId || !role || content == null) {
       return NextResponse.json(
         { success: false, error: "参数不完整" },
@@ -31,8 +32,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "无权操作" }, { status: 403 })
     }
 
+    // 用户带图提问：把每张 data URI 落盘成站内路径（/api/uploads/...），DB 只存路径数组（JSON）。
+    // 复用生图的 persistImage（吃 data URI / http 链接）；单张失败则跳过，不阻断消息保存。
+    let imagesJson: string | null = null
+    if (Array.isArray(images) && images.length > 0) {
+      const paths: string[] = []
+      for (const src of images.slice(0, 4)) {
+        if (typeof src !== "string" || !src) continue
+        try {
+          paths.push(await persistImage(src))
+        } catch (e) {
+          console.error("保存上传图片失败，跳过该张:", e)
+        }
+      }
+      if (paths.length > 0) imagesJson = JSON.stringify(paths)
+    }
+
     const message = await prisma.message.create({
-      data: { conversationId, role, content, tokens: tokens ?? null },
+      data: { conversationId, role, content, tokens: tokens ?? null, images: imagesJson },
     })
 
     await prisma.conversation.update({

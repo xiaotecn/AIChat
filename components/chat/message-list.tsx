@@ -199,6 +199,21 @@ export function MessageList({ messages, onRetry, isLoading, assistantAvatar, use
                     : "bg-white border border-gray-200 dark:bg-gray-900 dark:border-gray-800"
                 )}
               >
+                {/* 用户带图提问：缩略图行（点开复用灯箱）；置于文本上方 */}
+                {message.images && message.images.length > 0 && (
+                  <div className={cn("flex flex-wrap gap-2", message.content ? "mb-2" : "")}>
+                    {message.images.map((src, i) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        key={i}
+                        src={src}
+                        alt=""
+                        onClick={() => setLightbox({ src, alt: "" })}
+                        className="max-h-48 max-w-[180px] cursor-zoom-in rounded-lg border border-white/30 object-cover"
+                      />
+                    ))}
+                  </div>
+                )}
                 {streaming && !message.content ? (
                   // 还没收到首个分片：显示「正在思考」
                   <div className="flex items-center gap-2">

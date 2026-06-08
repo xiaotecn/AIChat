@@ -14,13 +14,14 @@ async function persistMessage(
   conversationId: string,
   role: "user" | "assistant",
   content: string,
-  tokens?: number
+  tokens?: number,
+  images?: string[]
 ): Promise<string | undefined> {
   try {
     const res = await fetch("/api/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ conversationId, role, content, tokens }),
+      body: JSON.stringify({ conversationId, role, content, tokens, images }),
     })
     const result = await res.json().catch(() => null)
     return result?.data?.id
@@ -163,7 +164,8 @@ export default function ChatPage() {
     conversationId: string,
     userContent: string,
     history: { role: string; content: string }[],
-    aiMessageId: string
+    aiMessageId: string,
+    images?: string[]
   ) => {
     const controller = new AbortController()
     abortRef.current = controller
@@ -179,6 +181,7 @@ export default function ChatPage() {
           message: userContent,
           model: selectedModel,
           history,
+          images,
         }),
         signal: controller.signal,
       })
@@ -259,14 +262,15 @@ export default function ChatPage() {
     }
   }
 
-  const handleSend = async (content: string) => {
+  const handleSend = async (content: string, images?: string[]) => {
     if (isLoading) return
     let conversationId = activeConversationId
     const existingMessages = activeConversation?.messages ?? []
 
     // 1. 没有活动会话则在数据库中创建
     if (!conversationId) {
-      const title = content.slice(0, 30) + (content.length > 30 ? "..." : "")
+      const base = content.trim() || "图片提问"
+      const title = base.slice(0, 30) + (base.length > 30 ? "..." : "")
       const conv = await createConversation(title, selectedModel)
       if (!conv) {
         toast.error("无法创建对话")
@@ -280,16 +284,17 @@ export default function ChatPage() {
       .filter((m) => m.status !== "error")
       .map((m) => ({ role: m.role, content: m.content }))
 
-    // 2. 用户消息：本地展示 + 持久化
+    // 2. 用户消息：本地展示（图片先用 data URI 即时显示）+ 持久化（服务端把图落盘成站内路径）
     const userMessage: Message = {
       id: generateId(),
       role: "user",
       content,
+      images: images?.length ? images : undefined,
       createdAt: new Date(),
       status: "success",
     }
     addMessage(conversationId, userMessage)
-    const userDbId = await persistMessage(conversationId, "user", content)
+    const userDbId = await persistMessage(conversationId, "user", content, undefined, images)
     if (userDbId) updateMessage(conversationId, userMessage.id, { dbId: userDbId })
 
     // 3. AI 占位消息
@@ -303,7 +308,7 @@ export default function ChatPage() {
     })
 
     // 4. 生成
-    await generate(conversationId, content, history, aiMessageId)
+    await generate(conversationId, content, history, aiMessageId, images)
   }
 
   const handleStop = () => {
