@@ -37,6 +37,12 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next()
   }
 
+  // 首页不再有落地页：已登录直达对应入口（未登录会被下方白名单规则拦去登录页）
+  if (path === "/" && session) {
+    const dest = session.role === "admin" ? "/admin" : "/chat"
+    return NextResponse.redirect(new URL(dest, req.nextUrl))
+  }
+
   // ── 页面（白名单制）：除登录/注册外一律需要登录，否则强制跳登录 ──
   const isAuthPage = path === "/login" || path === "/register"
 

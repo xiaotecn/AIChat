@@ -6,7 +6,7 @@ import { useChatStore } from "@/lib/store"
 
 // 会话守卫 + 准实时刷新（挂在受保护布局 MobileLayout / AdminLayout）：
 //  - 拉取当前用户注入 store；未登录(401) 或会话中途失效 → 强制跳 /login
-//  - 回到前台 / 每 30s：router.refresh() 刷新服务端数据（如站名/公告）+ 复核登录态
+//  - 回到前台 / 每 10s：router.refresh() 刷新服务端数据（如站名/公告）+ 复核登录态
 // 路由硬拦截仍由 proxy.ts 负责；这里补足「页面已加载后登录态失效」的场景。
 export function AuthGate() {
   const router = useRouter()
@@ -34,7 +34,7 @@ export function AuthGate() {
         router.refresh()
         check()
       }
-    }, 30000)
+    }, 10000)
     return () => {
       document.removeEventListener("visibilitychange", onFocus)
       window.removeEventListener("focus", onFocus)

@@ -95,10 +95,6 @@ export default function LoginPage() {
             </Link>
           </p>
         </form>
-
-        <p className="mt-4 text-center text-xs text-gray-400">
-          测试账号：admin@example.com / admin123456
-        </p>
       </div>
     </div>
   )

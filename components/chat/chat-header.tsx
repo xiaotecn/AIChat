@@ -20,8 +20,6 @@ export function ChatHeader() {
     user,
     conversations,
     activeConversationId,
-    selectedModel,
-    createConversation,
     setActiveConversation,
     renameConversation,
     removeConversation,
@@ -35,6 +33,10 @@ export function ChatHeader() {
     : conversations
 
   const deleteTarget = conversations.find((c) => c.id === deleteTargetId)
+
+  // 当前对话是否为空（无消息且无预览）→ 已是「新对话」状态，禁止重复新建
+  const activeConv = conversations.find((c) => c.id === activeConversationId)
+  const currentIsEmpty = !activeConv || (activeConv.messages.length === 0 && !activeConv.preview)
 
   // 按时间分组对话
   function groupConversationsByTime(convs: typeof conversations) {
@@ -68,8 +70,9 @@ export function ChatHeader() {
 
   const groupedConversations = groupConversationsByTime(filteredConversations)
 
-  async function handleNewChat() {
-    await createConversation("新对话", selectedModel)
+  function handleNewChat() {
+    // 当前已是空白对话则不重复新建；否则进入空白对话，首条消息发送时再在数据库创建并以其为标题
+    if (!currentIsEmpty) setActiveConversation(null)
     closeDrawer()
   }
 
@@ -163,10 +166,12 @@ export function ChatHeader() {
               </div>
             )}
 
-            {/* 新建对话按钮 */}
+            {/* 新建对话按钮（当前已是空白对话时禁用） */}
             <button
               onClick={handleNewChat}
-              className="mx-4 mt-4 flex items-center justify-center gap-2 rounded-xl bg-gray-100 py-3 font-semibold hover:bg-gray-200"
+              disabled={currentIsEmpty}
+              title={currentIsEmpty ? "当前已是新对话" : "新建对话"}
+              className="mx-4 mt-4 flex items-center justify-center gap-2 rounded-xl bg-gray-100 py-3 font-semibold hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-gray-100"
             >
               <Plus className="h-5 w-5" />
               新建对话

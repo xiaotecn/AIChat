@@ -50,6 +50,7 @@ export default function ChatPage() {
     selectedModel,
     modelGroups,
     createConversation,
+    renameConversation,
     addMessage,
     updateMessage,
     loadConversations,
@@ -266,17 +267,22 @@ export default function ChatPage() {
     if (isLoading) return
     let conversationId = activeConversationId
     const existingMessages = activeConversation?.messages ?? []
+    const isFirstMessage = existingMessages.length === 0
 
-    // 1. 没有活动会话则在数据库中创建
+    // 标题取首条消息（截断 30 字）；纯图片提问无文字时退化为「图片提问」
+    const base = content.trim() || "图片提问"
+    const derivedTitle = base.slice(0, 30) + (base.length > 30 ? "..." : "")
+
+    // 1. 没有活动会话则懒创建（标题 = 首条消息）；已有空会话则用首条消息回填标题，避免停留在「新对话」
     if (!conversationId) {
-      const base = content.trim() || "图片提问"
-      const title = base.slice(0, 30) + (base.length > 30 ? "..." : "")
-      const conv = await createConversation(title, selectedModel)
+      const conv = await createConversation(derivedTitle, selectedModel)
       if (!conv) {
         toast.error("无法创建对话")
         return
       }
       conversationId = conv.id
+    } else if (isFirstMessage) {
+      renameConversation(conversationId, derivedTitle)
     }
 
     // 多轮上下文（排除失败消息）
