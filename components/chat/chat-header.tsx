@@ -263,14 +263,12 @@ export function ChatHeader() {
               onClick={closeDrawer}
               className="flex items-center gap-3 p-4 hover:bg-gray-50"
             >
-              {user?.avatar ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={user.avatar} alt="" className="h-12 w-12 shrink-0 rounded-full object-cover" />
-              ) : (
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-cyan-500 text-lg font-bold text-white">
-                  {user?.name?.[0]?.toUpperCase() || "U"}
-                </div>
-              )}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={user?.avatar || "/seal.png"}
+                alt=""
+                className="h-12 w-12 shrink-0 rounded-full bg-white object-cover"
+              />
               <div className="flex-1">
                 <p className="font-semibold">{user?.name || "游客"}</p>
                 <p className="text-xs text-gray-500">{user?.email || "未登录"}</p>

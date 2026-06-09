@@ -24,7 +24,6 @@ export default function ProfilePage() {
 
   const planName = user?.planName || null
   const isFree = !planName || /免费|free/i.test(planName)
-  const initial = user?.name?.[0]?.toUpperCase() || "U"
 
   const msgUsed = user?.usedMessages ?? 0
   const msgLimit = user?.messageLimit ?? 0
@@ -64,22 +63,13 @@ export default function ProfilePage() {
 
         {/* 头像 + 身份 */}
         <section className="flex items-center gap-3.5 px-0.5 pb-[22px] pt-2.5">
-          {user?.avatar ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={user.avatar}
-              alt=""
-              className="h-[72px] w-[72px] shrink-0 rounded-full bg-white object-cover p-1"
-              style={{ boxShadow: "0 0 0 2px #e0e2e7" }}
-            />
-          ) : (
-            <div
-              className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#f6d8ea] via-[#dce8ff] to-[#dcd2f2] text-3xl font-bold text-[#6f86c9]"
-              style={{ boxShadow: "0 0 0 2px #e0e2e7" }}
-            >
-              {initial}
-            </div>
-          )}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={user?.avatar || "/seal.png"}
+            alt=""
+            className="h-[72px] w-[72px] shrink-0 rounded-full bg-white object-cover p-1"
+            style={{ boxShadow: "0 0 0 2px #e0e2e7" }}
+          />
           <div className="min-w-0 flex-1">
             <div className="mb-2 flex items-center gap-2">
               <div className="truncate text-[24px] font-bold leading-[1.1] text-[#202124]">{user?.name || "游客"}</div>

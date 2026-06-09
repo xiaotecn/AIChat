@@ -31,8 +31,6 @@ export default function ProfileEditPage() {
     }
   }, [user, hydrated])
 
-  const initial = (name || user?.email || "U").slice(0, 1).toUpperCase()
-
   async function handlePickAvatar(file: File | null | undefined) {
     if (!file) return
     try {
@@ -109,14 +107,12 @@ export default function ProfileEditPage() {
           {/* 头像 */}
           <div className="flex flex-col items-center gap-3">
             <div className="relative">
-              {avatar ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={avatar} alt="" className="h-24 w-24 rounded-full object-cover shadow-md" />
-              ) : (
-                <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-cyan-500 text-4xl font-bold text-white shadow-md">
-                  {initial}
-                </div>
-              )}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={avatar || "/seal.png"}
+                alt=""
+                className="h-24 w-24 rounded-full bg-white object-cover shadow-md"
+              />
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
