@@ -2,6 +2,7 @@
 
 import { ReactNode } from "react"
 import { AuthGate } from "@/components/auth/auth-gate"
+import { MobileOnlyGate } from "@/components/layout/mobile-only-gate"
 
 interface MobileLayoutProps {
   children: ReactNode
@@ -11,6 +12,7 @@ export function MobileLayout({ children }: MobileLayoutProps) {
   return (
     <div className="fixed inset-0 bg-white md:flex md:items-center md:justify-center md:bg-gradient-to-b md:from-gray-100 md:to-gray-200 md:p-6">
       <AuthGate />
+      <MobileOnlyGate />
       {/* 移动端：全屏铺满（用系统真实刘海/安全区）；桌面端(md+)：居中手机外框预览 */}
       <div className="relative h-full w-full overflow-hidden bg-white md:h-[844px] md:w-[390px] md:rounded-[40px] md:border-[14px] md:border-gray-900 md:shadow-2xl">
         {/* 假刘海：仅桌面预览显示；真机用系统刘海，不再叠加 */}

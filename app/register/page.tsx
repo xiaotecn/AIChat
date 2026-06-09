@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { Sparkles } from "lucide-react"
-import { useSiteName } from "@/components/site-name-provider"
+import { useSiteName, useLogoUrl } from "@/components/site-name-provider"
 
 export default function RegisterPage() {
   const [name, setName] = useState("")
@@ -12,6 +12,7 @@ export default function RegisterPage() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const siteName = useSiteName()
+  const logoUrl = useLogoUrl()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -40,9 +41,18 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 shadow-xl shadow-blue-500/30 mb-4">
-            <Sparkles className="w-8 h-8 text-white" />
-          </div>
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={logoUrl}
+              alt=""
+              className="mx-auto mb-4 h-16 w-16 rounded-2xl object-cover shadow-xl shadow-blue-500/30"
+            />
+          ) : (
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 shadow-xl shadow-blue-500/30 mb-4">
+              <Sparkles className="w-8 h-8 text-white" />
+            </div>
+          )}
           <h1 className="text-2xl font-bold text-gray-900">注册 {siteName}</h1>
           <p className="text-sm text-gray-500 mt-1">创建你的账号，开始智能对话</p>
         </div>

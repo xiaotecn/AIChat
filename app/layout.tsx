@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toast";
-import { getSiteName } from "@/lib/settings";
+import { getSiteName, getBrand } from "@/lib/settings";
 import { SiteNameProvider } from "@/components/site-name-provider";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -39,11 +39,11 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const siteName = await getSiteName();
+  const brand = await getBrand();
   return (
     <html lang="zh-CN">
       <body className={inter.className}>
-        <SiteNameProvider value={siteName}>{children}</SiteNameProvider>
+        <SiteNameProvider value={brand}>{children}</SiteNameProvider>
         <Toaster />
       </body>
     </html>

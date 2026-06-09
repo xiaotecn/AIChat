@@ -38,6 +38,7 @@ export async function PATCH(request: NextRequest) {
       update: {
         siteName: data.siteName,
         description: data.description ?? null,
+        logoUrl: data.logoUrl || null,
         announcement: data.announcement ?? null,
         registrationMode: data.registrationMode,
         defaultPlanId: data.defaultPlanId || null,
@@ -46,6 +47,7 @@ export async function PATCH(request: NextRequest) {
         id: DEFAULT_ID,
         siteName: data.siteName ?? "AI Chat",
         description: data.description ?? null,
+        logoUrl: data.logoUrl || null,
         announcement: data.announcement ?? null,
         registrationMode: data.registrationMode ?? "open",
         defaultPlanId: data.defaultPlanId || null,

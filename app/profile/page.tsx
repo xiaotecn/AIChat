@@ -177,7 +177,7 @@ export default function ProfilePage() {
             <ChevronRight className="h-[18px] w-[18px] shrink-0 text-[#191b20]" />
           </Link>
           <Link
-            href="/profile/settings"
+            href="/profile/security"
             className="flex min-h-[64px] items-center gap-[13px] text-[17px] font-semibold text-[#202124]"
           >
             <ShieldCheck className="h-[26px] w-[26px] shrink-0 text-[#24262b]" strokeWidth={2.1} />

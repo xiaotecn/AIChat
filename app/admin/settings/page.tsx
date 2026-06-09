@@ -2,9 +2,11 @@
 
 import { AdminLayout } from "@/components/admin/admin-layout"
 import { useEffect, useState } from "react"
+import { downscaleImageToDataUrl } from "@/lib/image"
 
 interface SettingsForm {
   siteName: string
+  logoUrl: string
   description: string
   announcement: string
   registrationMode: string
@@ -19,6 +21,7 @@ interface PlanOption {
 export default function AdminSettings() {
   const [form, setForm] = useState<SettingsForm>({
     siteName: "",
+    logoUrl: "",
     description: "",
     announcement: "",
     registrationMode: "open",
@@ -38,6 +41,7 @@ export default function AdminSettings() {
           const s = result.data.settings
           setForm({
             siteName: s.siteName ?? "",
+            logoUrl: s.logoUrl ?? "",
             description: s.description ?? "",
             announcement: s.announcement ?? "",
             registrationMode: s.registrationMode ?? "open",
@@ -53,6 +57,18 @@ export default function AdminSettings() {
     }
     load()
   }, [])
+
+  const handlePickLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ""
+    if (!file) return
+    try {
+      const dataUrl = await downscaleImageToDataUrl(file, 256)
+      setForm((prev) => ({ ...prev, logoUrl: dataUrl }))
+    } catch (err) {
+      alert((err as Error).message || "图片处理失败")
+    }
+  }
 
   const handleSave = async () => {
     setSaving(true)
@@ -103,6 +119,40 @@ export default function AdminSettings() {
                 onChange={(e) => setForm({ ...form, siteName: e.target.value })}
                 className="w-full px-4 py-3 rounded-xl bg-white/60 border border-white/50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">网站 Logo</label>
+              <div className="flex items-center gap-4">
+                {form.logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={form.logoUrl}
+                    alt="logo"
+                    className="h-16 w-16 rounded-xl border border-gray-200 bg-white object-cover"
+                  />
+                ) : (
+                  <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-dashed border-gray-300 text-xs text-gray-400">
+                    无
+                  </div>
+                )}
+                <div className="flex flex-col items-start gap-2">
+                  <label className="cursor-pointer rounded-lg border border-white/50 bg-white/70 px-4 py-2 text-sm text-gray-700 transition-all hover:bg-white">
+                    上传图片
+                    <input type="file" accept="image/*" className="hidden" onChange={handlePickLogo} />
+                  </label>
+                  {form.logoUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, logoUrl: "" })}
+                      className="text-xs text-gray-500 hover:text-red-600"
+                    >
+                      移除 Logo
+                    </button>
+                  )}
+                </div>
+              </div>
+              <p className="mt-2 text-xs text-gray-400">用于登录页等品牌展示，建议正方形图片；留空则使用默认图标。</p>
             </div>
 
             <div>
