@@ -15,6 +15,9 @@ interface ChatMessage {
   content: string | ChatContentPart[]
 }
 
+// 故障转移候选：modelId 锁定具体渠道的模型（分组成员各自所属渠道）；code 用于非分组 / 兜底。
+type Candidate = { modelId?: string | null; code?: string }
+
 // 末条用户消息：vision 分组且带图 → 多模态数组（文本 + 各图 image_url）；否则纯文本（行为不变）。
 function buildUserMessage(text: string, images: string[]): ChatMessage {
   if (images.length === 0) return { role: "user", content: text }
@@ -120,8 +123,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 候选模型码列表：决定故障转移循环依次尝试哪些模型。
-    let candidates: (string | undefined)[]
+    // 候选列表：决定故障转移依次尝试哪些「渠道内的具体模型」。携带 modelId 锁定渠道，避免同名 code 串渠道。
+    let candidates: Candidate[]
     if (group) {
       // 关键词前置：命中则直接吐预设回复，不调用任何大模型
       const hit = await matchKeywordRule(group.id, message)
@@ -132,15 +135,15 @@ export async function POST(request: NextRequest) {
       if (groupModels.length > 0) {
         // 按持久化 cursor 轮转起点，得到本次候选顺序；游标 +1（fire-and-forget）
         candidates = rotate(
-          groupModels.map((m) => m.code),
+          groupModels.map((m) => ({ modelId: m.modelId, code: m.code })),
           group.cursor
         )
         prisma.modelGroup
           .update({ where: { id: group.id }, data: { cursor: { increment: 1 } } })
           .catch(() => {})
       } else {
-        // 空分组：退回「首个可用提供商」（resolveChatProvider(undefined)）
-        candidates = [undefined]
+        // 空分组：退回「首个可用提供商」
+        candidates = [{}]
       }
 
       // 图片生成分组：改为「后台任务」——先把 pending 助手消息落库，后台异步生成并落库 done/error，
@@ -150,7 +153,7 @@ export async function POST(request: NextRequest) {
       }
     } else {
       // 非分组：按原模型码（或 undefined）走单次解析
-      candidates = [modelOrGroup]
+      candidates = [{ code: modelOrGroup }]
     }
 
     // 组装发送给模型的消息（历史 + 本轮用户消息）
@@ -172,7 +175,7 @@ export async function POST(request: NextRequest) {
     const maxTries = Math.min(candidates.length, 4)
     let lastProvider: ResolvedProvider | null = null
     for (let i = 0; i < maxTries; i++) {
-      const provider = await resolveChatProvider(candidates[i])
+      const provider = await resolveChatProvider(candidates[i].code, candidates[i].modelId)
       lastProvider = provider
       // 完全未配置任何提供商：后续候选同样无解，直接跳出走模拟响应
       if (provider.source === "none") break
@@ -223,7 +226,7 @@ export async function POST(request: NextRequest) {
 
     // 全部候选失败 / 未配置提供商 → 简短「服务器不可用」提示（不计用量）
     const fallback =
-      lastProvider ?? (await resolveChatProvider(candidates[0]))
+      lastProvider ?? (await resolveChatProvider(candidates[0]?.code, candidates[0]?.modelId))
     return streamUnavailable(fallback, userLabel)
   } catch (error) {
     console.error("Chat stream API error:", error)
@@ -335,6 +338,7 @@ async function logApiCall(opts: {
     await prisma.apiLog.create({
       data: {
         providerId: opts.provider.providerId ?? "env",
+        providerName: opts.provider.providerName,
         model: opts.provider.model,
         user: opts.userLabel,
         action: opts.action ?? "chat.completion",
@@ -428,14 +432,14 @@ function streamCannedReply(
  * 文本」——成功为图片 Markdown，失败为提示文案。额度的预扣 / 退还由调用方 startImageJob 负责。
  */
 async function runImageGenLoop(
-  candidates: (string | undefined)[],
+  candidates: Candidate[],
   prompt: string,
   userLabel: string
 ): Promise<string> {
   const maxTries = Math.min(candidates.length, 4)
   let lastProvider: ResolvedProvider | null = null
   for (let i = 0; i < maxTries; i++) {
-    const provider = await resolveChatProvider(candidates[i])
+    const provider = await resolveChatProvider(candidates[i].code, candidates[i].modelId)
     lastProvider = provider
     // 完全未配置任何提供商：后续候选同样无解
     if (provider.source === "none") break
@@ -634,7 +638,7 @@ function extractImageUrls(raw: string): string[] {
  */
 async function startImageJob(
   conversationId: string | undefined,
-  candidates: (string | undefined)[],
+  candidates: Candidate[],
   prompt: string,
   userId: string,
   userLabel: string

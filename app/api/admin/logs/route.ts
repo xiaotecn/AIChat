@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
       id: log.id,
       user: log.user,
       action: log.action,
+      channel: log.providerName || log.providerId, // 渠道名（旧数据无 providerName 时回退到 id）
       model: log.model,
       tokens: log.tokens,
       status: log.status,

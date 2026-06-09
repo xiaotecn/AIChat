@@ -34,8 +34,33 @@ function isUsableKey(key: string | null | undefined): key is string {
  *   4. None — caller should fall back to a mock response.
  */
 export async function resolveChatProvider(
-  modelCode?: string
+  modelCode?: string,
+  modelId?: string | null
 ): Promise<ResolvedProvider> {
+  // 0. 精确按模型 id 解析（分组成员携带其所属渠道的模型 id）：锁定具体渠道，
+  //    避免「同名 code 在多个渠道」时按 code 解析串到别的渠道（即日志里看到的「乱穿」）。
+  if (modelId) {
+    const model = await prisma.aiModel.findFirst({
+      where: { id: modelId, enabled: true, provider: { enabled: true } },
+      include: { provider: true },
+    })
+    if (model) {
+      const apiKey = decryptSecret(model.provider.apiKey)
+      if (isUsableKey(apiKey)) {
+        return {
+          source: "db",
+          baseUrl: model.provider.baseUrl,
+          apiKey,
+          model: model.code,
+          price: model.price,
+          modelId: model.id,
+          providerId: model.provider.id,
+          providerName: model.provider.name,
+        }
+      }
+    }
+  }
+
   // 1. Exact model match on an enabled provider.
   if (modelCode) {
     const model = await prisma.aiModel.findFirst({

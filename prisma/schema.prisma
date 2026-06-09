@@ -113,15 +113,16 @@ model AiModel {
 }
 
 model ApiLog {
-  id          String   @id @default(cuid())
-  providerId  String
-  model       String
-  user        String
-  action      String
-  tokens      Int
-  status      String
-  message     String
-  createdAt   DateTime @default(now())
+  id           String   @id @default(cuid())
+  providerId   String
+  providerName String? // 来源渠道名（人类可读），便于区分多个同名模型来自哪个渠道
+  model        String
+  user         String
+  action       String
+  tokens       Int
+  status       String
+  message      String
+  createdAt    DateTime @default(now())
 
   @@index([providerId, createdAt])
 }

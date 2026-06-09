@@ -348,11 +348,12 @@ export default function ChatPage() {
       }
     }
 
-    // 复位占位消息并重新生成
+    // 复位占位消息并重新生成。createdAt 重置为当前：生图占位的计时/进度从 0 重新开始（否则会接着旧时间走）
     updateMessage(activeConversationId, assistantId, {
       content: "",
       status: "sending",
       dbId: undefined,
+      createdAt: new Date(),
     })
     await generate(activeConversationId, userContent, history, assistantId)
   }

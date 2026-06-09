@@ -7,6 +7,7 @@ interface Log {
   id: string
   user: string
   action: string
+  channel: string
   model: string
   tokens: number
   status: string
@@ -112,10 +113,14 @@ export default function AdminLogs() {
                   <span className="text-xs text-gray-500">{log.time}</span>
                 </div>
 
-                <div className="grid grid-cols-4 gap-4 text-sm">
+                <div className="grid grid-cols-2 gap-4 text-sm md:grid-cols-4">
                   <div>
                     <span className="text-gray-500">操作：</span>
                     <span className="text-gray-900 font-medium">{log.action}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">渠道：</span>
+                    <span className="text-gray-900 font-medium">{log.channel || "—"}</span>
                   </div>
                   <div>
                     <span className="text-gray-500">模型：</span>

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
-import { Bot, Loader2, Copy, RotateCcw, ThumbsUp, ThumbsDown, Share2, CornerUpLeft, X, Download } from "lucide-react"
+import { Loader2, Copy, RotateCcw, ThumbsUp, ThumbsDown, Share2, CornerUpLeft, X, Download } from "lucide-react"
 import ReactMarkdown from "react-markdown"
 import { Message } from "@/lib/store"
 import { cn } from "@/lib/utils"
@@ -72,8 +72,8 @@ async function saveImage(src: string) {
   }
 }
 
-// 生图加载态：空图骨架 + 旋转 + 已用时 + 缓动进度条（指数逼近 ~95%，出图前不填满，避免虚假完成）。
-// startedAt 取消息 createdAt：新发与「重载续看」都能算出真实已用时。
+// 生图加载态：空图骨架内直接叠加「旋转 + 已用时 + 底部进度条」（指数逼近 ~95%，出图前不填满，避免虚假完成）。
+// startedAt 取消息 createdAt：新发与「重载续看」都能算出真实已用时；重新生成时上层会重置 createdAt 让它从 0 起。
 function ImageGenLoading({ startedAt }: { startedAt: Date }) {
   const [elapsed, setElapsed] = useState(0)
   useEffect(() => {
@@ -89,21 +89,17 @@ function ImageGenLoading({ startedAt }: { startedAt: Date }) {
   const ss = String(elapsed % 60).padStart(2, "0")
 
   return (
-    <div className="w-[220px] max-w-full">
-      <div className="relative aspect-square w-full overflow-hidden rounded-xl border border-gray-200 bg-gradient-to-br from-gray-100 to-gray-200 dark:border-gray-700 dark:from-gray-800 dark:to-gray-900">
-        <div className="absolute inset-0 animate-pulse bg-gray-200/50 dark:bg-gray-700/40" />
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-gray-500 dark:text-gray-400">
-          <Loader2 className="h-7 w-7 animate-spin" />
-          <span className="text-xs">正在生成图片…</span>
-        </div>
+    <div className="relative aspect-square w-[220px] max-w-full overflow-hidden rounded-xl border border-gray-200 bg-gradient-to-br from-gray-100 to-gray-200 dark:border-gray-700 dark:from-gray-800 dark:to-gray-900">
+      <div className="absolute inset-0 animate-pulse bg-gray-200/50 dark:bg-gray-700/40" />
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-gray-500 dark:text-gray-400">
+        <Loader2 className="h-7 w-7 animate-spin" />
+        <span className="text-xs">正在生成图片…</span>
+        <span className="text-[11px] tabular-nums opacity-80">{mm}:{ss}</span>
       </div>
-      <div className="mt-2 flex items-center justify-between text-[11px] text-gray-400">
-        <span>已用 {mm}:{ss}</span>
-        <span>预计 1–2 分钟</span>
-      </div>
-      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+      {/* 进度条贴在空图底部内，动态显示，不再单独占一行 */}
+      <div className="absolute inset-x-0 bottom-0 h-1.5 bg-black/10 dark:bg-white/10">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 transition-all duration-1000 ease-out"
+          className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 transition-all duration-1000 ease-out"
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -150,8 +146,9 @@ export function MessageList({ messages, onRetry, isLoading, onReference }: Messa
       <div ref={scrollRef} className="flex-1 space-y-6 overflow-y-auto px-4 py-5">
         {messages.length === 0 && (
           <div className="flex h-full items-center justify-center text-center">
-            <div className="space-y-2">
-              <Bot className="mx-auto h-12 w-12 text-gray-400" />
+            <div className="space-y-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/seal.png" alt="" className="mx-auto h-24 w-24 object-contain" />
               <p className="text-sm text-gray-500">开始新的对话</p>
             </div>
           </div>
