@@ -16,7 +16,11 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: `${siteName} - 智能对话助手`,
     description: "现代化的 AI 聊天应用",
-    manifest: "/manifest.json",
+    manifest: "/manifest.webmanifest",
+    icons: {
+      icon: "/icon-192.png",
+      apple: "/apple-icon.png",
+    },
     appleWebApp: {
       capable: true,
       statusBarStyle: "default",

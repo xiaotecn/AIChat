@@ -68,6 +68,6 @@ export async function proxy(req: NextRequest) {
 // 静态资源不经过 proxy
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|manifest.json|.*\\.png$|.*\\.svg$|.*\\.ico$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|manifest.json|manifest.webmanifest|.*\\.png$|.*\\.svg$|.*\\.ico$).*)",
   ],
 }
