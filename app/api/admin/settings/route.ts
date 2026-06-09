@@ -18,7 +18,12 @@ export async function GET() {
       select: { id: true, name: true },
     })
 
-    return NextResponse.json({ success: true, data: { settings, plans } })
+    // 不把 SMTP 密码回传给前端，只告知是否已设置（前端密码框留空 = 不修改）
+    const { smtpPass, ...safe } = settings
+    return NextResponse.json({
+      success: true,
+      data: { settings: { ...safe, smtpPassSet: !!smtpPass }, plans },
+    })
   } catch (error) {
     console.error("Get settings error:", error)
     return NextResponse.json(
@@ -33,28 +38,34 @@ export async function PATCH(request: NextRequest) {
   try {
     const data = await request.json()
 
+    const portNum = data.smtpPort ? Number(data.smtpPort) : null
+    const base = {
+      siteName: data.siteName,
+      description: data.description ?? null,
+      logoUrl: data.logoUrl || null,
+      announcement: data.announcement ?? null,
+      registrationMode: data.registrationMode,
+      defaultPlanId: data.defaultPlanId || null,
+      smtpHost: (data.smtpHost ?? "").trim() || null,
+      smtpPort: Number.isFinite(portNum) ? portNum : null,
+      smtpUser: (data.smtpUser ?? "").trim() || null,
+      smtpFrom: (data.smtpFrom ?? "").trim() || null,
+      smtpSecure: data.smtpSecure ?? true,
+      requireEmailVerification: data.requireEmailVerification ?? false,
+      allowedEmailDomains: (data.allowedEmailDomains ?? "").trim() || null,
+    }
+    // 仅当传入非空密码时才更新，留空保持原密码
+    const passUpdate =
+      typeof data.smtpPass === "string" && data.smtpPass.length > 0 ? { smtpPass: data.smtpPass } : {}
+
     const settings = await prisma.systemSettings.upsert({
       where: { id: DEFAULT_ID },
-      update: {
-        siteName: data.siteName,
-        description: data.description ?? null,
-        logoUrl: data.logoUrl || null,
-        announcement: data.announcement ?? null,
-        registrationMode: data.registrationMode,
-        defaultPlanId: data.defaultPlanId || null,
-      },
-      create: {
-        id: DEFAULT_ID,
-        siteName: data.siteName ?? "AI Chat",
-        description: data.description ?? null,
-        logoUrl: data.logoUrl || null,
-        announcement: data.announcement ?? null,
-        registrationMode: data.registrationMode ?? "open",
-        defaultPlanId: data.defaultPlanId || null,
-      },
+      update: { ...base, ...passUpdate },
+      create: { id: DEFAULT_ID, ...base, smtpPass: data.smtpPass || null },
     })
 
-    return NextResponse.json({ success: true, data: settings })
+    const { smtpPass, ...safe } = settings
+    return NextResponse.json({ success: true, data: { ...safe, smtpPassSet: !!smtpPass } })
   } catch (error) {
     console.error("Update settings error:", error)
     return NextResponse.json(

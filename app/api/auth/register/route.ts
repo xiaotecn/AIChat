@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
 import { setSessionCookie } from "@/lib/auth"
 import { rateLimit, clientIp } from "@/lib/rate-limit"
+import { parseAllowedDomains, isEmailDomainAllowed } from "@/lib/email-rules"
 
 export async function POST(request: NextRequest) {
   try {
@@ -55,6 +56,32 @@ export async function POST(request: NextRequest) {
         { success: false, error: "当前为邀请注册，请联系管理员开通账号" },
         { status: 403 }
       )
+    }
+
+    // 邮箱域名白名单（留空 = 不限制）
+    const allowed = parseAllowedDomains(settings?.allowedEmailDomains)
+    if (!isEmailDomainAllowed(email, allowed)) {
+      return NextResponse.json(
+        { success: false, error: `仅支持以下邮箱注册：${allowed.join("、")}` },
+        { status: 403 }
+      )
+    }
+
+    // 邮箱验证码（开启邮箱验证时必校验）
+    if (settings?.requireEmailVerification) {
+      const code = String(body.code || "").trim()
+      if (!code) {
+        return NextResponse.json({ success: false, error: "请填写邮箱验证码" }, { status: 400 })
+      }
+      const rec = await prisma.emailCode.findFirst({
+        where: { email, code, expiresAt: { gt: new Date() } },
+        orderBy: { createdAt: "desc" },
+      })
+      if (!rec) {
+        return NextResponse.json({ success: false, error: "验证码错误或已过期" }, { status: 400 })
+      }
+      // 用过即清除该邮箱所有码
+      await prisma.emailCode.deleteMany({ where: { email } })
     }
 
     const existing = await prisma.user.findUnique({ where: { email } })

@@ -2,6 +2,7 @@
 
 import { AdminLayout } from "@/components/admin/admin-layout"
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { downscaleImageToDataUrl } from "@/lib/image"
 
 interface SettingsForm {
@@ -11,6 +12,14 @@ interface SettingsForm {
   announcement: string
   registrationMode: string
   defaultPlanId: string
+  smtpHost: string
+  smtpPort: string
+  smtpUser: string
+  smtpPass: string
+  smtpFrom: string
+  smtpSecure: boolean
+  requireEmailVerification: boolean
+  allowedEmailDomains: string
 }
 
 interface PlanOption {
@@ -26,11 +35,22 @@ export default function AdminSettings() {
     announcement: "",
     registrationMode: "open",
     defaultPlanId: "",
+    smtpHost: "",
+    smtpPort: "",
+    smtpUser: "",
+    smtpPass: "",
+    smtpFrom: "",
+    smtpSecure: true,
+    requireEmailVerification: false,
+    allowedEmailDomains: "",
   })
   const [plans, setPlans] = useState<PlanOption[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [smtpPassSet, setSmtpPassSet] = useState(false)
+  const [testing, setTesting] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
     const load = async () => {
@@ -46,7 +66,16 @@ export default function AdminSettings() {
             announcement: s.announcement ?? "",
             registrationMode: s.registrationMode ?? "open",
             defaultPlanId: s.defaultPlanId ?? "",
+            smtpHost: s.smtpHost ?? "",
+            smtpPort: s.smtpPort != null ? String(s.smtpPort) : "",
+            smtpUser: s.smtpUser ?? "",
+            smtpPass: "", // 不回显密码
+            smtpFrom: s.smtpFrom ?? "",
+            smtpSecure: s.smtpSecure ?? true,
+            requireEmailVerification: s.requireEmailVerification ?? false,
+            allowedEmailDomains: s.allowedEmailDomains ?? "",
           })
+          setSmtpPassSet(!!s.smtpPassSet)
           setPlans(result.data.plans ?? [])
         }
       } catch (error) {
@@ -82,6 +111,8 @@ export default function AdminSettings() {
       const result = await res.json()
       if (result.success) {
         setSaved(true)
+        // 让根布局重新读取品牌（站名/Logo）并刷新到当前页面，保存后立即生效，无需手动刷新
+        router.refresh()
         setTimeout(() => setSaved(false), 2500)
       } else {
         alert("保存失败: " + result.error)
@@ -90,6 +121,23 @@ export default function AdminSettings() {
       alert("保存失败: " + error)
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleTestSmtp = async () => {
+    setTesting(true)
+    try {
+      const res = await fetch("/api/admin/settings/test-smtp", { method: "POST" })
+      const result = await res.json()
+      if (result.success) {
+        alert(`测试邮件已发送到 ${result.data.to}，请查收（含垃圾箱）`)
+      } else {
+        alert("发送失败: " + result.error)
+      }
+    } catch (e) {
+      alert("发送失败: " + e)
+    } finally {
+      setTesting(false)
     }
   }
 
@@ -210,6 +258,120 @@ export default function AdminSettings() {
                   </option>
                 ))}
               </select>
+            </div>
+          </div>
+        </div>
+
+        {/* 邮件 (SMTP) 与注册验证 */}
+        <div className="rounded-2xl backdrop-blur-xl bg-white/70 border border-white/50 shadow-lg p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-6">邮件 (SMTP) 与注册验证</h3>
+
+          <div className="space-y-4">
+            <label className="flex cursor-pointer items-center justify-between gap-4 rounded-xl bg-white/40 px-4 py-3">
+              <span>
+                <span className="block text-sm font-medium text-gray-700">注册需邮箱验证码</span>
+                <span className="mt-0.5 block text-xs text-gray-400">开启后注册要先收取邮箱验证码（需配置下方 SMTP）</span>
+              </span>
+              <input
+                type="checkbox"
+                checked={form.requireEmailVerification}
+                onChange={(e) => setForm({ ...form, requireEmailVerification: e.target.checked })}
+                className="h-5 w-5 shrink-0 accent-blue-600"
+              />
+            </label>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">允许注册的邮箱域名</label>
+              <input
+                type="text"
+                value={form.allowedEmailDomains}
+                onChange={(e) => setForm({ ...form, allowedEmailDomains: e.target.value })}
+                placeholder="如 qq.com,gmail.com（留空 = 不限制）"
+                className="w-full px-4 py-3 rounded-xl bg-white/60 border border-white/50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              />
+              <p className="mt-1 text-xs text-gray-400">多个域名用逗号分隔；留空表示任意邮箱都可注册。</p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">SMTP 主机</label>
+                <input
+                  type="text"
+                  value={form.smtpHost}
+                  onChange={(e) => setForm({ ...form, smtpHost: e.target.value })}
+                  placeholder="smtp.qq.com"
+                  className="w-full px-4 py-3 rounded-xl bg-white/60 border border-white/50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">端口</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={form.smtpPort}
+                  onChange={(e) => setForm({ ...form, smtpPort: e.target.value.replace(/[^0-9]/g, "") })}
+                  placeholder="465"
+                  className="w-full px-4 py-3 rounded-xl bg-white/60 border border-white/50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                />
+              </div>
+            </div>
+
+            <label className="flex cursor-pointer items-center gap-2">
+              <input
+                type="checkbox"
+                checked={form.smtpSecure}
+                onChange={(e) => setForm({ ...form, smtpSecure: e.target.checked })}
+                className="h-4 w-4 accent-blue-600"
+              />
+              <span className="text-sm text-gray-700">使用 SSL（端口 465 勾选；587 取消勾选走 STARTTLS）</span>
+            </label>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">SMTP 账号</label>
+                <input
+                  type="text"
+                  value={form.smtpUser}
+                  onChange={(e) => setForm({ ...form, smtpUser: e.target.value })}
+                  placeholder="you@qq.com"
+                  autoComplete="off"
+                  className="w-full px-4 py-3 rounded-xl bg-white/60 border border-white/50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">SMTP 密码 / 授权码</label>
+                <input
+                  type="password"
+                  value={form.smtpPass}
+                  onChange={(e) => setForm({ ...form, smtpPass: e.target.value })}
+                  placeholder={smtpPassSet ? "已设置，留空则不修改" : "邮箱 SMTP 授权码"}
+                  autoComplete="new-password"
+                  className="w-full px-4 py-3 rounded-xl bg-white/60 border border-white/50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">发件人</label>
+              <input
+                type="text"
+                value={form.smtpFrom}
+                onChange={(e) => setForm({ ...form, smtpFrom: e.target.value })}
+                placeholder="留空则用 SMTP 账号；也可写：智能海豹 <no-reply@x.com>"
+                className="w-full px-4 py-3 rounded-xl bg-white/60 border border-white/50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleTestSmtp}
+                disabled={testing}
+                className="rounded-xl border border-white/50 bg-white/70 px-5 py-2.5 text-sm font-medium text-gray-700 transition-all hover:bg-white disabled:opacity-50"
+              >
+                {testing ? "发送中..." : "发送测试邮件"}
+              </button>
+              <span className="text-xs text-gray-400">请先「保存设置」，测试邮件会发到你的管理员邮箱</span>
             </div>
           </div>
         </div>

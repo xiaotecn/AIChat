@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { Sparkles } from "lucide-react"
 import { useSiteName, useLogoUrl } from "@/components/site-name-provider"
@@ -9,10 +9,73 @@ export default function RegisterPage() {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [code, setCode] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const siteName = useSiteName()
   const logoUrl = useLogoUrl()
+
+  // 注册配置：是否需邮箱验证码 / 允许的邮箱域名（由后台设置决定）
+  const [requireCode, setRequireCode] = useState(false)
+  const [allowedDomains, setAllowedDomains] = useState<string[]>([])
+  // 发送验证码：loading + 60s 冷却
+  const [sending, setSending] = useState(false)
+  const [cooldown, setCooldown] = useState(0)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    fetch("/api/auth/register-config")
+      .then((r) => r.json())
+      .then((res) => {
+        if (res?.success) {
+          setRequireCode(!!res.data.requireEmailVerification)
+          setAllowedDomains(Array.isArray(res.data.allowedDomains) ? res.data.allowedDomains : [])
+        }
+      })
+      .catch(() => {})
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current)
+    }
+  }, [])
+
+  const startCooldown = () => {
+    setCooldown(60)
+    timerRef.current = setInterval(() => {
+      setCooldown((c) => {
+        if (c <= 1) {
+          if (timerRef.current) clearInterval(timerRef.current)
+          return 0
+        }
+        return c - 1
+      })
+    }, 1000)
+  }
+
+  const handleSendCode = async () => {
+    setError("")
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError("请先填写正确的邮箱")
+      return
+    }
+    setSending(true)
+    try {
+      const res = await fetch("/api/auth/send-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      })
+      const result = await res.json()
+      if (result.success) {
+        startCooldown()
+      } else {
+        setError(result.error || "验证码发送失败")
+      }
+    } catch {
+      setError("网络错误，请稍后重试")
+    } finally {
+      setSending(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -22,7 +85,7 @@ export default function RegisterPage() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email, password, code }),
       })
       const result = await res.json()
       if (result.success) {
@@ -83,7 +146,36 @@ export default function RegisterPage() {
               required
               className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
             />
+            {allowedDomains.length > 0 && (
+              <p className="mt-1 text-xs text-gray-400">仅支持：{allowedDomains.map((d) => "@" + d).join("、")}</p>
+            )}
           </div>
+
+          {requireCode && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">邮箱验证码</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
+                  placeholder="6 位验证码"
+                  inputMode="numeric"
+                  required
+                  className="flex-1 min-w-0 px-4 py-3 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={handleSendCode}
+                  disabled={sending || cooldown > 0}
+                  className="shrink-0 rounded-xl border border-blue-200 bg-blue-50 px-4 text-sm font-medium text-blue-600 transition-all hover:bg-blue-100 disabled:opacity-50"
+                >
+                  {cooldown > 0 ? `${cooldown}s` : sending ? "发送中" : "发送验证码"}
+                </button>
+              </div>
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">密码</label>
             <input

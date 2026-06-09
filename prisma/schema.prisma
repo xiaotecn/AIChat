@@ -134,8 +134,30 @@ model SystemSettings {
   announcement     String?
   registrationMode String   @default("open")
   defaultPlanId    String?
+
+  // 邮件(SMTP) + 注册邮箱验证
+  smtpHost                 String?
+  smtpPort                 Int?
+  smtpUser                 String?
+  smtpPass                 String?
+  smtpFrom                 String? // 发件人，如 "智能海豹 <no-reply@x.com>" 或纯邮箱
+  smtpSecure               Boolean @default(true) // true=465/SSL，false=587/STARTTLS
+  requireEmailVerification Boolean @default(false) // 注册是否需要邮箱验证码
+  allowedEmailDomains      String? // 允许注册的邮箱域名，逗号/空格分隔，如 "qq.com,gmail.com"；空=不限制
+
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+}
+
+// 注册邮箱验证码（6 位，10 分钟有效）。验证通过后删除该邮箱的所有码。
+model EmailCode {
+  id        String   @id @default(cuid())
+  email     String
+  code      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
 }
 
 // 模型分组：把多个 AiModel 打包，组内轮询 + 故障转移；按套餐授权给用户
