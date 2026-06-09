@@ -222,7 +222,9 @@ export const useChatStore = create<ChatStore>()(
       activeConversationId: null,
       isLoading: false,
       conversationsLoaded: false,
-      selectedModel: 'gpt-3.5-turbo',
+      // 空串 = 尚未选定分组；分组列表加载后由 loadModelGroups 选中首个有效分组。
+      // 不再用假模型码做默认，避免发送时被后端当作「非分组」而绕过分组逻辑。
+      selectedModel: '',
       modelGroups: [],
 
       setConversations: (conversations) => set({ conversations }),

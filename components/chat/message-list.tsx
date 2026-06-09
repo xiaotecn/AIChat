@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
-import { Bot, Loader2, Copy, RotateCcw, ThumbsUp, ThumbsDown, Share2, X, Download } from "lucide-react"
+import { Bot, Loader2, Copy, RotateCcw, ThumbsUp, ThumbsDown, Share2, CornerUpLeft, X, Download } from "lucide-react"
 import ReactMarkdown from "react-markdown"
 import { Message } from "@/lib/store"
 import { cn } from "@/lib/utils"
@@ -12,6 +12,8 @@ interface MessageListProps {
   messages: Message[]
   onRetry?: (messageId: string) => void
   isLoading?: boolean
+  // 把对话里的某张图「引用」到输入框（作为下一条识图消息的图片输入）
+  onReference?: (src: string) => void
 }
 
 async function copyText(text: string) {
@@ -109,7 +111,7 @@ function ImageGenLoading({ startedAt }: { startedAt: Date }) {
   )
 }
 
-export function MessageList({ messages, onRetry, isLoading }: MessageListProps) {
+export function MessageList({ messages, onRetry, isLoading, onReference }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -240,6 +242,8 @@ export function MessageList({ messages, onRetry, isLoading }: MessageListProps) 
                             className="my-1 max-h-80 w-auto cursor-zoom-in rounded-xl border border-gray-200 transition hover:opacity-90 dark:border-gray-700"
                           />
                         ) : null,
+                      // 模型偶尔用 --- 输出分隔线，prose 默认渲染成扎眼横线 → 改为纯留白间距
+                      hr: () => <div className="h-4" aria-hidden="true" />,
                     }}
                   >
                     {message.content}
@@ -313,21 +317,38 @@ export function MessageList({ messages, onRetry, isLoading }: MessageListProps) 
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            <div className="flex items-center justify-end gap-2 p-3">
-              <button
-                onClick={() => saveImage(lightbox.src)}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20"
-                title="保存图片"
-              >
-                <Download className="h-5 w-5" />
-              </button>
-              <button
-                onClick={() => setLightbox(null)}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20"
-                title="关闭"
-              >
-                <X className="h-5 w-5" />
-              </button>
+            <div className="flex items-center justify-between gap-2 p-3">
+              {onReference ? (
+                <button
+                  onClick={() => {
+                    onReference(lightbox.src)
+                    setLightbox(null)
+                  }}
+                  className="flex items-center gap-1.5 rounded-full bg-white/10 px-4 py-2 text-sm text-white transition hover:bg-white/20"
+                  title="把这张图引用到输入框（识图分组可带图提问）"
+                >
+                  <CornerUpLeft className="h-4 w-4" />
+                  引用到对话
+                </button>
+              ) : (
+                <span />
+              )}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => saveImage(lightbox.src)}
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20"
+                  title="保存图片"
+                >
+                  <Download className="h-5 w-5" />
+                </button>
+                <button
+                  onClick={() => setLightbox(null)}
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20"
+                  title="关闭"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
             <div
               className="flex flex-1 items-center justify-center overflow-auto p-4"

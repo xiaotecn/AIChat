@@ -13,12 +13,15 @@ interface ChatInputProps {
   isLoading?: boolean
   disabled?: boolean
   placeholder?: string
+  // 从对话里「引用」的图片（站内路径 / 链接 / dataURI）；值变化时注入到待发送图片列表
+  injectImage?: string | null
+  onInjected?: () => void
 }
 
 // 单条消息最多带几张图（与后端一致）
 const MAX_IMAGES = 4
 
-export function ChatInput({ onSend, onStop, isLoading, disabled, placeholder = "发消息…" }: ChatInputProps) {
+export function ChatInput({ onSend, onStop, isLoading, disabled, placeholder = "发消息…", injectImage, onInjected }: ChatInputProps) {
   const [message, setMessage] = useState("")
   const [images, setImages] = useState<string[]>([]) // 当前待发送图片（data URI）
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -50,10 +53,49 @@ export function ChatInput({ onSend, onStop, isLoading, disabled, placeholder = "
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canVision])
 
-  const canSend = (Boolean(message.trim()) || images.length > 0) && !isLoading && !disabled
+  // 引用对话里的图片：拉取（站内路径/链接）或直接用（dataURI），压缩后加入待发送列表。
+  // 仅视觉分组可带图；满 4 张或非视觉分组时给出提示。处理完通知父级清空引用，便于再次引用同一张。
+  useEffect(() => {
+    if (!injectImage) return
+    const run = async () => {
+      if (!canVision) {
+        toast.info("请先切换到识图分组，再引用图片")
+        return
+      }
+      if (images.length >= MAX_IMAGES) {
+        toast.info(`最多上传 ${MAX_IMAGES} 张图片`)
+        return
+      }
+      try {
+        let dataUrl: string
+        if (injectImage.startsWith("data:")) {
+          dataUrl = injectImage
+        } else {
+          const res = await fetch(injectImage)
+          const blob = await res.blob()
+          const file = new File([blob], "ref", { type: blob.type || "image/png" })
+          dataUrl = await downscaleImageToDataUrl(file, 1024)
+        }
+        setImages((prev) => (prev.length >= MAX_IMAGES ? prev : [...prev, dataUrl]))
+      } catch {
+        toast.error("引用图片失败")
+      }
+    }
+    run().finally(() => onInjected?.())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [injectImage])
+
+  // 必须已选中有效分组（selectedGroup 存在）才能发送：避免分组列表尚未加载完就发出，
+  // 导致后端拿到的不是分组 id、当作「非分组」绕过系统提示词/关键词/视觉等分组逻辑。
+  const canSend =
+    (Boolean(message.trim()) || images.length > 0) && !isLoading && !disabled && !!selectedGroup
 
   const handleSend = () => {
     if ((!message.trim() && images.length === 0) || isLoading || disabled) return
+    if (!selectedGroup) {
+      toast.info("模型加载中，请稍候…")
+      return
+    }
     onSend(message.trim(), images.length ? images : undefined)
     setMessage("")
     setImages([])

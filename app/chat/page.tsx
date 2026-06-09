@@ -40,6 +40,8 @@ function displayContent(s: string): string {
 
 export default function ChatPage() {
   const [isLoading, setIsLoading] = useState(false)
+  // 从对话里「引用」的图片：传给输入框注入为下一条识图消息的图片输入
+  const [refImage, setRefImage] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   // 正在轮询的生图任务（按消息 dbId 去重，防止重复轮询同一任务）
   const pollingRef = useRef<Set<string>>(new Set())
@@ -365,10 +367,17 @@ export default function ChatPage() {
         messages={activeConversation?.messages || []}
         onRetry={handleRetry}
         isLoading={isLoading}
+        onReference={setRefImage}
       />
 
       {/* 输入框 */}
-      <ChatInput onSend={handleSend} onStop={handleStop} isLoading={isLoading} />
+      <ChatInput
+        onSend={handleSend}
+        onStop={handleStop}
+        isLoading={isLoading}
+        injectImage={refImage}
+        onInjected={() => setRefImage(null)}
+      />
     </div>
   )
 }
