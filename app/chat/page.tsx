@@ -44,11 +44,9 @@ export default function ChatPage() {
   // 正在轮询的生图任务（按消息 dbId 去重，防止重复轮询同一任务）
   const pollingRef = useRef<Set<string>>(new Set())
   const {
-    user,
     conversations,
     activeConversationId,
     selectedModel,
-    modelGroups,
     createConversation,
     renameConversation,
     addMessage,
@@ -60,9 +58,6 @@ export default function ChatPage() {
   } = useChatStore()
 
   const activeConversation = conversations.find((c) => c.id === activeConversationId)
-  // 助手头像 = 当前会话所用分组的自定义头像（取不到则为 null，MessageList 回退内置 Bot 图标）
-  const currentGroupId = activeConversation?.modelId ?? selectedModel
-  const assistantAvatar = modelGroups.find((g) => g.id === currentGroupId)?.avatarUrl ?? null
 
   // 进入页面时从数据库加载对话列表
   useEffect(() => {
@@ -370,8 +365,6 @@ export default function ChatPage() {
         messages={activeConversation?.messages || []}
         onRetry={handleRetry}
         isLoading={isLoading}
-        assistantAvatar={assistantAvatar}
-        userAvatar={user?.avatar ?? null}
       />
 
       {/* 输入框 */}
