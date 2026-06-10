@@ -1,14 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 
-function formatTime(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0")
-  return (
-    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ` +
-    `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
-  )
-}
-
 // GET - 获取调用日志（来自真实的 ApiLog 表）
 export async function GET(request: NextRequest) {
   try {
@@ -35,7 +27,7 @@ export async function GET(request: NextRequest) {
       tokens: log.tokens,
       status: log.status,
       message: log.message,
-      time: formatTime(log.createdAt),
+      time: log.createdAt.toISOString(), // 返回 ISO，由前端按浏览器本地时区展示
     }))
 
     return NextResponse.json({

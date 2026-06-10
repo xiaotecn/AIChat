@@ -13,6 +13,8 @@ import {
   MessageSquare,
   Upload,
   ImagePlus,
+  Search,
+  ChevronDown,
 } from "lucide-react"
 import { downscaleImageToDataUrl } from "@/lib/image"
 
@@ -89,6 +91,8 @@ export default function AdminModelGroups() {
   const [membersGroup, setMembersGroup] = useState<Group | null>(null)
   const [selectedModelIds, setSelectedModelIds] = useState<string[]>([])
   const [savingMembers, setSavingMembers] = useState(false)
+  const [memberSearch, setMemberSearch] = useState("")
+  const [collapsedProviders, setCollapsedProviders] = useState<Record<string, boolean>>({})
 
   // 关键词规则弹窗
   const [rulesGroup, setRulesGroup] = useState<Group | null>(null)
@@ -198,6 +202,8 @@ export default function AdminModelGroups() {
   const openMembers = (g: Group) => {
     setMembersGroup(g)
     setSelectedModelIds(g.members.map((m) => m.modelId))
+    setMemberSearch("")
+    setCollapsedProviders({})
   }
 
   const toggleModel = (id: string) => {
@@ -205,6 +211,12 @@ export default function AdminModelGroups() {
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     )
   }
+
+  // 批量选/取消（渠道全选用）：保留已选顺序，新选的按传入顺序追加
+  const setManySelected = (ids: string[], on: boolean) =>
+    setSelectedModelIds((prev) =>
+      on ? Array.from(new Set([...prev, ...ids])) : prev.filter((x) => !ids.includes(x))
+    )
 
   const saveMembers = async () => {
     if (!membersGroup) return
@@ -604,13 +616,26 @@ export default function AdminModelGroups() {
       )}
 
       {/* 成员弹窗 */}
-      {membersGroup && (
+      {membersGroup && (() => {
+        const q = memberSearch.trim().toLowerCase()
+        const filtered = q
+          ? models.filter(
+              (m) =>
+                m.name.toLowerCase().includes(q) ||
+                m.code.toLowerCase().includes(q) ||
+                m.provider.toLowerCase().includes(q)
+            )
+          : models
+        const byProvider: Record<string, ModelItem[]> = {}
+        for (const m of filtered) (byProvider[m.provider] ||= []).push(m)
+        const providerNames = Object.keys(byProvider).sort((a, b) => a.localeCompare(b))
+        return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-              <div>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full max-h-[90vh] flex flex-col">
+            <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+              <div className="min-w-0">
                 <h2 className="text-xl font-bold text-gray-900">配置成员</h2>
-                <p className="text-sm text-gray-500">{membersGroup.name} · 勾选顺序即轮询顺序</p>
+                <p className="text-sm text-gray-500 truncate">{membersGroup.name} · 勾选顺序即轮询顺序</p>
               </div>
               <button
                 onClick={() => setMembersGroup(null)}
@@ -619,38 +644,93 @@ export default function AdminModelGroups() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-6">
+
+            {/* 搜索 */}
+            <div className="px-6 py-3 border-b border-gray-100">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={memberSearch}
+                  onChange={(e) => setMemberSearch(e.target.value)}
+                  placeholder="搜索模型名 / code / 渠道…"
+                  className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none text-sm"
+                />
+              </div>
+            </div>
+
+            {/* 列表：按渠道分组 */}
+            <div className="flex-1 overflow-y-auto px-4 py-3">
               {models.length === 0 ? (
-                <p className="text-sm text-gray-400">
-                  暂无可用模型，请先到「AI 接口」导入并启用模型。
-                </p>
+                <p className="text-sm text-gray-400 px-2">暂无可用模型，请先到「AI 接口」导入并启用模型。</p>
+              ) : providerNames.length === 0 ? (
+                <p className="text-sm text-gray-400 px-2">没有匹配「{memberSearch}」的模型。</p>
               ) : (
-                <div className="space-y-2">
-                  {models.map((m) => (
-                    <label
-                      key={m.id}
-                      className="flex items-center gap-3 cursor-pointer rounded-lg px-3 py-2 hover:bg-gray-50 border border-gray-100"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedModelIds.includes(m.id)}
-                        onChange={() => toggleModel(m.id)}
-                        className="w-4 h-4 rounded border-gray-300"
-                      />
-                      <span className="flex-1 text-sm text-gray-700">
-                        {m.name}
-                        <span className="text-gray-400">（{m.provider}）</span>
-                        {!m.providerEnabled && (
-                          <span className="ml-2 text-xs text-amber-600">提供商已禁用</span>
+                <div className="space-y-3">
+                  {providerNames.map((prov) => {
+                    const list = byProvider[prov]
+                    const ids = list.map((m) => m.id)
+                    const selCount = ids.filter((id) => selectedModelIds.includes(id)).length
+                    const allSel = selCount === ids.length
+                    const isCollapsed = !q && collapsedProviders[prov]
+                    return (
+                      <div key={prov} className="rounded-xl border border-gray-100 overflow-hidden">
+                        {/* 渠道头 */}
+                        <div className="flex items-center gap-2 bg-gray-50 px-3 py-2">
+                          <button
+                            type="button"
+                            onClick={() => setCollapsedProviders((p) => ({ ...p, [prov]: !p[prov] }))}
+                            className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+                          >
+                            <ChevronDown
+                              className={`w-4 h-4 shrink-0 text-gray-400 transition-transform ${isCollapsed ? "-rotate-90" : ""}`}
+                            />
+                            <span className="text-sm font-semibold text-gray-700 truncate">{prov}</span>
+                            <span className="shrink-0 text-xs text-gray-400">
+                              {selCount}/{list.length}
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setManySelected(ids, !allSel)}
+                            className="shrink-0 rounded-lg px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                          >
+                            {allSel ? "取消全选" : "全选"}
+                          </button>
+                        </div>
+                        {/* 模型 */}
+                        {!isCollapsed && (
+                          <div className="divide-y divide-gray-50">
+                            {list.map((m) => (
+                              <label
+                                key={m.id}
+                                className="flex items-center gap-3 cursor-pointer px-3 py-2 hover:bg-gray-50"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedModelIds.includes(m.id)}
+                                  onChange={() => toggleModel(m.id)}
+                                  className="w-4 h-4 rounded border-gray-300"
+                                />
+                                <span className="flex-1 min-w-0 truncate text-sm text-gray-700">
+                                  {m.name}
+                                  {!m.providerEnabled && (
+                                    <span className="ml-2 text-xs text-amber-600">提供商已禁用</span>
+                                  )}
+                                </span>
+                                <span className="shrink-0 text-xs text-gray-500">{fmtLatency(m.avgLatencyMs)}</span>
+                              </label>
+                            ))}
+                          </div>
                         )}
-                      </span>
-                      <span className="text-xs text-gray-500">{fmtLatency(m.avgLatencyMs)}</span>
-                    </label>
-                  ))}
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>
-            <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex gap-3">
+
+            <div className="bg-gray-50 border-t border-gray-200 px-6 py-4 flex gap-3">
               <button
                 onClick={() => setMembersGroup(null)}
                 className="flex-1 px-6 py-3 rounded-xl bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium transition-all"
@@ -668,7 +748,8 @@ export default function AdminModelGroups() {
             </div>
           </div>
         </div>
-      )}
+        )
+      })()}
 
       {/* 关键词规则弹窗 */}
       {rulesGroup && (

@@ -15,6 +15,17 @@ interface Log {
   time: string
 }
 
+// 把 ISO 时间按「浏览器本地时区」格式化成 YYYY-MM-DD HH:mm:ss
+function fmtLocal(iso: string): string {
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return iso
+  const pad = (n: number) => String(n).padStart(2, "0")
+  return (
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ` +
+    `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  )
+}
+
 export default function AdminLogs() {
   const [logs, setLogs] = useState<Log[]>([])
   const [loading, setLoading] = useState(true)
@@ -110,7 +121,7 @@ export default function AdminLogs() {
                     </span>
                     <span className="text-sm font-medium text-gray-900">{log.user}</span>
                   </div>
-                  <span className="text-xs text-gray-500">{log.time}</span>
+                  <span className="text-xs text-gray-500">{fmtLocal(log.time)}</span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 text-sm md:grid-cols-4">

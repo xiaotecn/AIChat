@@ -426,6 +426,24 @@ function streamCannedReply(
   })
 }
 
+// 从上游(生图)错误响应里提取人类可读消息；若命中「内容违规/审核不通过」类关键词，
+// 返回该原因用于直接回显给用户（其余普通错误仍走通用失败文案）。
+function extractViolationReason(raw: string): string | null {
+  let msg = ""
+  try {
+    const j = JSON.parse(raw)
+    msg = (j?.error?.message || j?.message || (typeof j?.error === "string" ? j.error : "") || "").toString()
+  } catch {
+    msg = raw
+  }
+  msg = msg.trim()
+  if (!msg) return null
+  const re =
+    /违规|违禁|敏感|涉黄|涉政|涉暴|不良|不当|审核未?通过|内容安全|风控|safety|content[\s_-]?policy|moderation|rejected|blocked|nsfw|sensitive|prohibited|violat/i
+  if (!re.test(msg)) return null
+  return msg.length > 200 ? msg.slice(0, 200) + "…" : msg
+}
+
 /**
  * 生图故障转移循环（被 startImageJob 在后台调用）：把用户消息当 prompt，依次尝试候选模型
  * 调用 /images/generations（同步、可能 2–4 分钟）。内部完成日志与延迟记录，返回「最终要展示的
@@ -510,6 +528,9 @@ async function runImageGenLoop(
         message: `生图上游错误 ${upstream.status}: ${rawText.slice(0, 200)}`,
         action: "image.generation",
       })
+      // 上游明确「内容违规/审核不通过」：换别的候选同样会被拒——把原因直接回显给用户，不再失败转移
+      const violation = extractViolationReason(rawText)
+      if (violation) return `⚠️ ${violation}`
       continue
     }
 
@@ -525,6 +546,9 @@ async function runImageGenLoop(
         message: `生图响应无图片数据: ${rawText.slice(0, 200)}`,
         action: "image.generation",
       })
+      // 有的渠道返回 200 但体内是违规提示：同样把违规原因回显给用户
+      const violation = extractViolationReason(rawText)
+      if (violation) return `⚠️ ${violation}`
       continue
     }
 
